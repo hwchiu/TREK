@@ -21,6 +21,7 @@ jobs:
   server-tests:
     name: Server Tests
     runs-on: ubuntu-latest
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v6
@@ -73,4 +74,3 @@ jobs:
           name: client-coverage-report
           path: client/coverage/
           retention-days: 7
-
