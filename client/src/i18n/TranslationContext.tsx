@@ -8,6 +8,7 @@ import hu from './translations/hu'
 import it from './translations/it'
 import ru from './translations/ru'
 import zh from './translations/zh'
+import zhTW from './translations/zh-tw'
 import nl from './translations/nl'
 import ar from './translations/ar'
 import br from './translations/br'
@@ -28,12 +29,13 @@ export const SUPPORTED_LANGUAGES = [
   { value: 'pl', label: 'Polski' },
   { value: 'ru', label: 'Русский' },
   { value: 'zh', label: '中文' },
+  { value: 'zh-tw', label: '繁體中文' },
   { value: 'it', label: 'Italiano' },
   { value: 'ar', label: 'العربية' },
 ] as const
 
-const translations: Record<string, TranslationStrings> = { de, en, es, fr, hu, it, ru, zh, nl, ar, br, cs, pl }
-const LOCALES: Record<string, string> = { de: 'de-DE', en: 'en-US', es: 'es-ES', fr: 'fr-FR', hu: 'hu-HU', it: 'it-IT', ru: 'ru-RU', zh: 'zh-CN', nl: 'nl-NL', ar: 'ar-SA', br: 'pt-BR', cs: 'cs-CZ', pl: 'pl-PL' }
+const translations: Record<string, TranslationStrings> = { de, en, es, fr, hu, it, ru, zh, 'zh-tw': zhTW, nl, ar, br, cs, pl }
+const LOCALES: Record<string, string> = { de: 'de-DE', en: 'en-US', es: 'es-ES', fr: 'fr-FR', hu: 'hu-HU', it: 'it-IT', ru: 'ru-RU', zh: 'zh-CN', 'zh-tw': 'zh-tw', nl: 'nl-NL', ar: 'ar-SA', br: 'pt-BR', cs: 'cs-CZ', pl: 'pl-PL' }
 const RTL_LANGUAGES = new Set(['ar'])
 
 export function getLocaleForLanguage(language: string): string {
@@ -42,6 +44,7 @@ export function getLocaleForLanguage(language: string): string {
 
 export function getIntlLanguage(language: string): string {
   if (language === 'br') return 'pt-BR'
+  if (language === 'zh-tw') return 'zh-tw'
   return ['de', 'es', 'fr', 'hu', 'it', 'ru', 'zh', 'nl', 'ar', 'cs', 'pl'].includes(language) ? language : 'en'
 }
 
