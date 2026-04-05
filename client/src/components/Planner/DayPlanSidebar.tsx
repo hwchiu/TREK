@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
-interface DragDataPayload { placeId?: string; assignmentId?: string; noteId?: string; fromDayId?: string }
-declare global { interface Window { __dragData: DragDataPayload | null } }
-
 import React, { useState, useEffect, useRef, useMemo } from 'react'
+import type { DragDataPayload } from '../../types/global'
 import ReactDOM from 'react-dom'
 import { ChevronDown, ChevronRight, ChevronUp, Navigation, RotateCcw, ExternalLink, Clock, Pencil, GripVertical, Ticket, Plus, FileText, Check, Trash2, Info, MapPin, Star, Heart, Camera, Lightbulb, Flag, Bookmark, Train, Bus, Plane, Car, Ship, Coffee, ShoppingBag, AlertTriangle, FileDown, Lock, Hotel, Utensils, Users, Undo2 } from 'lucide-react'
 
@@ -48,7 +46,9 @@ const NOTE_ICONS = [
   { id: 'Bookmark', Icon: Bookmark },
 ]
 const NOTE_ICON_MAP = Object.fromEntries(NOTE_ICONS.map(({ id, Icon }) => [id, Icon]))
-function getNoteIcon(iconId) { return NOTE_ICON_MAP[iconId] || FileText }
+function getNoteIcon(iconId: string): React.ComponentType<{ size?: number; className?: string }> {
+  return NOTE_ICON_MAP[iconId] ?? FileText
+}
 
 const TYPE_ICONS = {
   flight: '✈️', hotel: '🏨', restaurant: '🍽️', train: '🚆',

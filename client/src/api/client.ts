@@ -1,5 +1,12 @@
 import axios, { AxiosInstance } from 'axios'
 import { getSocketId } from './websocket'
+import type {
+  CreateTripRequest,
+  UpdateTripRequest,
+  CreatePlaceRequest,
+  UpdatePlaceRequest,
+  UpdateDayRequest,
+} from './types'
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: '/api',
@@ -73,9 +80,9 @@ export const authApi = {
 
 export const tripsApi = {
   list: (params?: Record<string, unknown>) => apiClient.get('/trips', { params }).then(r => r.data),
-  create: (data: Record<string, unknown>) => apiClient.post('/trips', data).then(r => r.data),
+  create: (data: CreateTripRequest) => apiClient.post('/trips', data).then(r => r.data),
   get: (id: number | string) => apiClient.get(`/trips/${id}`).then(r => r.data),
-  update: (id: number | string, data: Record<string, unknown>) => apiClient.put(`/trips/${id}`, data).then(r => r.data),
+  update: (id: number | string, data: UpdateTripRequest) => apiClient.put(`/trips/${id}`, data).then(r => r.data),
   delete: (id: number | string) => apiClient.delete(`/trips/${id}`).then(r => r.data),
   uploadCover: (id: number | string, formData: FormData) => apiClient.post(`/trips/${id}/cover`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),
   archive: (id: number | string) => apiClient.put(`/trips/${id}`, { is_archived: true }).then(r => r.data),
@@ -89,15 +96,15 @@ export const tripsApi = {
 export const daysApi = {
   list: (tripId: number | string) => apiClient.get(`/trips/${tripId}/days`).then(r => r.data),
   create: (tripId: number | string, data: Record<string, unknown>) => apiClient.post(`/trips/${tripId}/days`, data).then(r => r.data),
-  update: (tripId: number | string, dayId: number | string, data: Record<string, unknown>) => apiClient.put(`/trips/${tripId}/days/${dayId}`, data).then(r => r.data),
+  update: (tripId: number | string, dayId: number | string, data: UpdateDayRequest) => apiClient.put(`/trips/${tripId}/days/${dayId}`, data).then(r => r.data),
   delete: (tripId: number | string, dayId: number | string) => apiClient.delete(`/trips/${tripId}/days/${dayId}`).then(r => r.data),
 }
 
 export const placesApi = {
   list: (tripId: number | string, params?: Record<string, unknown>) => apiClient.get(`/trips/${tripId}/places`, { params }).then(r => r.data),
-  create: (tripId: number | string, data: Record<string, unknown>) => apiClient.post(`/trips/${tripId}/places`, data).then(r => r.data),
+  create: (tripId: number | string, data: CreatePlaceRequest) => apiClient.post(`/trips/${tripId}/places`, data).then(r => r.data),
   get: (tripId: number | string, id: number | string) => apiClient.get(`/trips/${tripId}/places/${id}`).then(r => r.data),
-  update: (tripId: number | string, id: number | string, data: Record<string, unknown>) => apiClient.put(`/trips/${tripId}/places/${id}`, data).then(r => r.data),
+  update: (tripId: number | string, id: number | string, data: UpdatePlaceRequest) => apiClient.put(`/trips/${tripId}/places/${id}`, data).then(r => r.data),
   delete: (tripId: number | string, id: number | string) => apiClient.delete(`/trips/${tripId}/places/${id}`).then(r => r.data),
   searchImage: (tripId: number | string, id: number | string) => apiClient.get(`/trips/${tripId}/places/${id}/image`).then(r => r.data),
   importGpx: (tripId: number | string, file: File) => {

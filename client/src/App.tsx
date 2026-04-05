@@ -13,6 +13,7 @@ import AtlasPage from './pages/AtlasPage'
 import SharedTripPage from './pages/SharedTripPage'
 import InAppNotificationsPage from './pages/InAppNotificationsPage.tsx'
 import { ToastContainer } from './components/shared/Toast'
+import { ErrorBoundary } from './components/shared/ErrorBoundary'
 import { TranslationProvider, useTranslation } from './i18n'
 import { authApi } from './api/client'
 import { usePermissionsStore, PermissionLevel } from './store/permissionsStore'
@@ -157,77 +158,79 @@ export default function App() {
   return (
     <TranslationProvider>
       <ToastContainer />
-      <Routes>
-        <Route path="/" element={<RootRedirect />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/shared/:token" element={<SharedTripPage />} />
-        <Route path="/register" element={<LoginPage />} />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <DashboardPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/trips/:id"
-          element={
-            <ProtectedRoute>
-              <TripPlannerPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/trips/:id/files"
-          element={
-            <ProtectedRoute>
-              <FilesPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute adminRequired>
-              <AdminPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <ProtectedRoute>
-              <SettingsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/vacay"
-          element={
-            <ProtectedRoute>
-              <VacayPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/atlas"
-          element={
-            <ProtectedRoute>
-              <AtlasPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/notifications"
-          element={
-            <ProtectedRoute>
-              <InAppNotificationsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <ErrorBoundary>
+        <Routes>
+          <Route path="/" element={<RootRedirect />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/shared/:token" element={<SharedTripPage />} />
+          <Route path="/register" element={<LoginPage />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/trips/:id"
+            element={
+              <ProtectedRoute>
+                <TripPlannerPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/trips/:id/files"
+            element={
+              <ProtectedRoute>
+                <FilesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute adminRequired>
+                <AdminPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/vacay"
+            element={
+              <ProtectedRoute>
+                <VacayPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/atlas"
+            element={
+              <ProtectedRoute>
+                <AtlasPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute>
+                <InAppNotificationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </ErrorBoundary>
     </TranslationProvider>
   )
 }
