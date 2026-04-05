@@ -5,6 +5,8 @@ import { broadcast } from '../websocket';
 import { checkPermission } from '../services/permissions';
 import { AuthRequest } from '../types';
 import * as dayService from '../services/dayService';
+import { validateBody } from '../middleware/zodValidate';
+import { UpdateDaySchema, CreateAccommodationSchema, UpdateAccommodationSchema } from '../schemas/daySchemas';
 
 const router = express.Router({ mergeParams: true });
 
@@ -26,7 +28,7 @@ router.post('/', authenticate, requireTripAccess, (req: Request, res: Response) 
   broadcast(tripId, 'day:created', { day }, req.headers['x-socket-id'] as string);
 });
 
-router.put('/:id', authenticate, requireTripAccess, (req: Request, res: Response) => {
+router.put('/:id', authenticate, requireTripAccess, validateBody(UpdateDaySchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   if (!checkPermission('day_edit', authReq.user.role, authReq.trip!.user_id, authReq.user.id, authReq.trip!.user_id !== authReq.user.id))
     return res.status(403).json({ error: 'No permission' });
@@ -67,17 +69,13 @@ accommodationsRouter.get('/', authenticate, requireTripAccess, (req: Request, re
   res.json({ accommodations: dayService.listAccommodations(tripId) });
 });
 
-accommodationsRouter.post('/', authenticate, requireTripAccess, (req: Request, res: Response) => {
+accommodationsRouter.post('/', authenticate, requireTripAccess, validateBody(CreateAccommodationSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   if (!checkPermission('day_edit', authReq.user.role, authReq.trip!.user_id, authReq.user.id, authReq.trip!.user_id !== authReq.user.id))
     return res.status(403).json({ error: 'No permission' });
 
   const { tripId } = req.params;
   const { place_id, start_day_id, end_day_id, check_in, check_out, confirmation, notes } = req.body;
-
-  if (!place_id || !start_day_id || !end_day_id) {
-    return res.status(400).json({ error: 'place_id, start_day_id, and end_day_id are required' });
-  }
 
   const errors = dayService.validateAccommodationRefs(tripId, place_id, start_day_id, end_day_id);
   if (errors.length > 0) return res.status(404).json({ error: errors[0].message });
@@ -88,7 +86,7 @@ accommodationsRouter.post('/', authenticate, requireTripAccess, (req: Request, r
   broadcast(tripId, 'reservation:created', {}, req.headers['x-socket-id'] as string);
 });
 
-accommodationsRouter.put('/:id', authenticate, requireTripAccess, (req: Request, res: Response) => {
+accommodationsRouter.put('/:id', authenticate, requireTripAccess, validateBody(UpdateAccommodationSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   if (!checkPermission('day_edit', authReq.user.role, authReq.trip!.user_id, authReq.user.id, authReq.trip!.user_id !== authReq.user.id))
     return res.status(403).json({ error: 'No permission' });

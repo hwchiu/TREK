@@ -4,6 +4,8 @@ import { authenticate } from '../middleware/auth';
 import { broadcast } from '../websocket';
 import { checkPermission } from '../services/permissions';
 import { AuthRequest } from '../types';
+import { validateBody } from '../middleware/zodValidate';
+import { CreateReservationSchema, UpdateReservationSchema, ReservationPositionsSchema } from '../schemas/reservationSchemas';
 import {
   verifyTripAccess,
   listReservations,
@@ -27,7 +29,7 @@ router.get('/', authenticate, (req: Request, res: Response) => {
   res.json({ reservations });
 });
 
-router.post('/', authenticate, (req: Request, res: Response) => {
+router.post('/', authenticate, validateBody(CreateReservationSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const { tripId } = req.params;
   const { title, reservation_time, reservation_end_time, location, confirmation_number, notes, day_id, place_id, assignment_id, status, type, accommodation_id, metadata, create_accommodation } = req.body;
@@ -37,8 +39,6 @@ router.post('/', authenticate, (req: Request, res: Response) => {
 
   if (!checkPermission('reservation_edit', authReq.user.role, trip.user_id, authReq.user.id, trip.user_id !== authReq.user.id))
     return res.status(403).json({ error: 'No permission' });
-
-  if (!title) return res.status(400).json({ error: 'Title is required' });
 
   const { reservation, accommodationCreated } = createReservation(tripId, {
     title, reservation_time, reservation_end_time, location,
@@ -61,7 +61,7 @@ router.post('/', authenticate, (req: Request, res: Response) => {
 });
 
 // Batch update day_plan_position for multiple reservations (must be before /:id)
-router.put('/positions', authenticate, (req: Request, res: Response) => {
+router.put('/positions', authenticate, validateBody(ReservationPositionsSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const { tripId } = req.params;
   const { positions } = req.body;
@@ -72,15 +72,13 @@ router.put('/positions', authenticate, (req: Request, res: Response) => {
   if (!checkPermission('reservation_edit', authReq.user.role, trip.user_id, authReq.user.id, trip.user_id !== authReq.user.id))
     return res.status(403).json({ error: 'No permission' });
 
-  if (!Array.isArray(positions)) return res.status(400).json({ error: 'positions must be an array' });
-
   updatePositions(tripId, positions);
 
   res.json({ success: true });
   broadcast(tripId, 'reservation:positions', { positions }, req.headers['x-socket-id'] as string);
 });
 
-router.put('/:id', authenticate, (req: Request, res: Response) => {
+router.put('/:id', authenticate, validateBody(UpdateReservationSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const { tripId, id } = req.params;
   const { title, reservation_time, reservation_end_time, location, confirmation_number, notes, day_id, place_id, assignment_id, status, type, accommodation_id, metadata, create_accommodation } = req.body;

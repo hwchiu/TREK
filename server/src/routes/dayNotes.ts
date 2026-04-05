@@ -1,10 +1,11 @@
 import express, { Request, Response } from 'express';
 import { authenticate } from '../middleware/auth';
 import { broadcast } from '../websocket';
-import { validateStringLengths } from '../middleware/validate';
 import { checkPermission } from '../services/permissions';
 import { AuthRequest } from '../types';
 import * as dayNoteService from '../services/dayNoteService';
+import { validateBody } from '../middleware/zodValidate';
+import { CreateDayNoteSchema, UpdateDayNoteSchema } from '../schemas/daySchemas';
 
 const router = express.Router({ mergeParams: true });
 
@@ -15,7 +16,7 @@ router.get('/', authenticate, (req: Request, res: Response) => {
   res.json({ notes: dayNoteService.listNotes(dayId, tripId) });
 });
 
-router.post('/', authenticate, validateStringLengths({ text: 500, time: 150 }), (req: Request, res: Response) => {
+router.post('/', authenticate, validateBody(CreateDayNoteSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const { tripId, dayId } = req.params;
   const access = dayNoteService.verifyTripAccess(tripId, authReq.user.id);
@@ -25,14 +26,13 @@ router.post('/', authenticate, validateStringLengths({ text: 500, time: 150 }), 
   if (!dayNoteService.dayExists(dayId, tripId)) return res.status(404).json({ error: 'Day not found' });
 
   const { text, time, icon, sort_order } = req.body;
-  if (!text?.trim()) return res.status(400).json({ error: 'Text required' });
 
   const note = dayNoteService.createNote(dayId, tripId, text, time, icon, sort_order);
   res.status(201).json({ note });
   broadcast(tripId, 'dayNote:created', { dayId: Number(dayId), note }, req.headers['x-socket-id'] as string);
 });
 
-router.put('/:id', authenticate, validateStringLengths({ text: 500, time: 150 }), (req: Request, res: Response) => {
+router.put('/:id', authenticate, validateBody(UpdateDayNoteSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const { tripId, dayId, id } = req.params;
   const access = dayNoteService.verifyTripAccess(tripId, authReq.user.id);

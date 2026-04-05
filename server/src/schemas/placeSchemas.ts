@@ -1,0 +1,55 @@
+import { z } from 'zod';
+
+export const CreatePlaceSchema = z.object({
+  name: z.string().min(1, 'Place name is required').max(200),
+  description: z.string().max(2000).optional(),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
+  address: z.string().max(500).optional(),
+  category_id: z.number().int().optional().nullable(),
+  price: z.number().min(0).optional().nullable(),
+  currency: z.string().max(10).optional().nullable(),
+  reservation_status: z.string().max(50).optional(),
+  reservation_notes: z.string().max(2000).optional().nullable(),
+  reservation_datetime: z.string().max(50).optional().nullable(),
+  place_time: z.string().max(50).optional().nullable(),
+  end_time: z.string().max(50).optional().nullable(),
+  duration_minutes: z.number().int().min(0).optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+  image_url: z.string().max(500).optional().nullable(),
+  google_place_id: z.string().max(500).optional().nullable(),
+  osm_id: z.string().max(200).optional().nullable(),
+  website: z.string().max(500).optional().nullable(),
+  phone: z.string().max(50).optional().nullable(),
+  transport_mode: z.string().max(50).optional().nullable(),
+  tags: z.array(z.number().int()).optional(),
+});
+
+export const UpdatePlaceSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  description: z.string().max(2000).optional().nullable(),
+  lat: z.number().optional().nullable(),
+  lng: z.number().optional().nullable(),
+  address: z.string().max(500).optional().nullable(),
+  category_id: z.number().int().optional().nullable(),
+  price: z.number().min(0).optional().nullable(),
+  currency: z.string().max(10).optional().nullable(),
+  reservation_status: z.string().max(50).optional(),
+  reservation_notes: z.string().max(2000).optional().nullable(),
+  reservation_datetime: z.string().max(50).optional().nullable(),
+  place_time: z.string().max(50).optional().nullable(),
+  end_time: z.string().max(50).optional().nullable(),
+  duration_minutes: z.number().int().min(0).optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+  image_url: z.string().max(500).optional().nullable(),
+  google_place_id: z.string().max(500).optional().nullable(),
+  osm_id: z.string().max(200).optional().nullable(),
+  website: z.string().max(500).optional().nullable(),
+  phone: z.string().max(50).optional().nullable(),
+  transport_mode: z.string().max(50).optional().nullable(),
+  tags: z.array(z.number().int()).optional(),
+});
+
+export const ImportGoogleListSchema = z.object({
+  url: z.string().min(1, 'URL is required'),
+});

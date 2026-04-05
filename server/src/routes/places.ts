@@ -3,7 +3,8 @@ import multer from 'multer';
 import { authenticate } from '../middleware/auth';
 import { requireTripAccess } from '../middleware/tripAccess';
 import { broadcast } from '../websocket';
-import { validateStringLengths } from '../middleware/validate';
+import { validateBody } from '../middleware/zodValidate';
+import { CreatePlaceSchema, UpdatePlaceSchema, ImportGoogleListSchema } from '../schemas/placeSchemas';
 import { checkPermission } from '../services/permissions';
 import { AuthRequest } from '../types';
 import {
@@ -34,17 +35,13 @@ router.get('/', authenticate, requireTripAccess, (req: Request, res: Response) =
   res.json({ places });
 });
 
-router.post('/', authenticate, requireTripAccess, validateStringLengths({ name: 200, description: 2000, address: 500, notes: 2000 }), (req: Request, res: Response) => {
+router.post('/', authenticate, requireTripAccess, validateBody(CreatePlaceSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   if (!checkPermission('place_edit', authReq.user.role, authReq.trip!.user_id, authReq.user.id, authReq.trip!.user_id !== authReq.user.id))
     return res.status(403).json({ error: 'No permission' });
 
   const { tripId } = req.params;
   const { name } = req.body;
-
-  if (!name) {
-    return res.status(400).json({ error: 'Place name is required' });
-  }
 
   const place = createPlace(tripId, req.body);
   res.status(201).json({ place });
@@ -73,14 +70,13 @@ router.post('/import/gpx', authenticate, requireTripAccess, gpxUpload.single('fi
 });
 
 // Import places from a shared Google Maps list URL
-router.post('/import/google-list', authenticate, requireTripAccess, async (req: Request, res: Response) => {
+router.post('/import/google-list', authenticate, requireTripAccess, validateBody(ImportGoogleListSchema), async (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   if (!checkPermission('place_edit', authReq.user.role, authReq.trip!.user_id, authReq.user.id, authReq.trip!.user_id !== authReq.user.id))
     return res.status(403).json({ error: 'No permission' });
 
   const { tripId } = req.params;
   const { url } = req.body;
-  if (!url || typeof url !== 'string') return res.status(400).json({ error: 'URL is required' });
 
   try {
     const result = await importGoogleList(tripId, url);
@@ -128,7 +124,7 @@ router.get('/:id/image', authenticate, requireTripAccess, async (req: Request, r
   }
 });
 
-router.put('/:id', authenticate, requireTripAccess, validateStringLengths({ name: 200, description: 2000, address: 500, notes: 2000 }), (req: Request, res: Response) => {
+router.put('/:id', authenticate, requireTripAccess, validateBody(UpdatePlaceSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   if (!checkPermission('place_edit', authReq.user.role, authReq.trip!.user_id, authReq.user.id, authReq.trip!.user_id !== authReq.user.id))
     return res.status(403).json({ error: 'No permission' });

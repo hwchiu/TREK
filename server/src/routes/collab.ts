@@ -5,10 +5,18 @@ import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticate } from '../middleware/auth';
 import { broadcast } from '../websocket';
-import { validateStringLengths } from '../middleware/validate';
 import { checkPermission } from '../services/permissions';
 import { AuthRequest } from '../types';
 import { db } from '../db/database';
+import { validateBody } from '../middleware/zodValidate';
+import {
+  CreateCollabNoteSchema,
+  UpdateCollabNoteSchema,
+  CreatePollSchema,
+  VotePollSchema,
+  CreateMessageSchema,
+  ReactMessageSchema,
+} from '../schemas/collabSchemas';
 import {
   verifyTripAccess,
   listNotes,
@@ -65,7 +73,7 @@ router.get('/notes', authenticate, (req: Request, res: Response) => {
   res.json({ notes: listNotes(tripId) });
 });
 
-router.post('/notes', authenticate, (req: Request, res: Response) => {
+router.post('/notes', authenticate, validateBody(CreateCollabNoteSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const { tripId } = req.params;
   const { title, content, category, color, website } = req.body;
@@ -73,7 +81,6 @@ router.post('/notes', authenticate, (req: Request, res: Response) => {
   if (!access) return res.status(404).json({ error: 'Trip not found' });
   if (!checkPermission('collab_edit', authReq.user.role, access.user_id, authReq.user.id, access.user_id !== authReq.user.id))
     return res.status(403).json({ error: 'No permission' });
-  if (!title) return res.status(400).json({ error: 'Title is required' });
 
   const formatted = createNote(tripId, authReq.user.id, { title, content, category, color, website });
   res.status(201).json({ note: formatted });
@@ -85,7 +92,7 @@ router.post('/notes', authenticate, (req: Request, res: Response) => {
   });
 });
 
-router.put('/notes/:id', authenticate, (req: Request, res: Response) => {
+router.put('/notes/:id', authenticate, validateBody(UpdateCollabNoteSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const { tripId, id } = req.params;
   const { title, content, category, color, pinned, website } = req.body;
@@ -161,7 +168,7 @@ router.get('/polls', authenticate, (req: Request, res: Response) => {
   res.json({ polls: listPolls(tripId) });
 });
 
-router.post('/polls', authenticate, (req: Request, res: Response) => {
+router.post('/polls', authenticate, validateBody(CreatePollSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const { tripId } = req.params;
   const { question, options, multiple, multiple_choice, deadline } = req.body;
@@ -169,17 +176,13 @@ router.post('/polls', authenticate, (req: Request, res: Response) => {
   if (!access) return res.status(404).json({ error: 'Trip not found' });
   if (!checkPermission('collab_edit', authReq.user.role, access.user_id, authReq.user.id, access.user_id !== authReq.user.id))
     return res.status(403).json({ error: 'No permission' });
-  if (!question) return res.status(400).json({ error: 'Question is required' });
-  if (!Array.isArray(options) || options.length < 2) {
-    return res.status(400).json({ error: 'At least 2 options are required' });
-  }
 
   const poll = createPoll(tripId, authReq.user.id, { question, options, multiple, multiple_choice, deadline });
   res.status(201).json({ poll });
   broadcast(tripId, 'collab:poll:created', { poll }, req.headers['x-socket-id'] as string);
 });
 
-router.post('/polls/:id/vote', authenticate, (req: Request, res: Response) => {
+router.post('/polls/:id/vote', authenticate, validateBody(VotePollSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const { tripId, id } = req.params;
   const { option_index } = req.body;
@@ -239,7 +242,7 @@ router.get('/messages', authenticate, (req: Request, res: Response) => {
   res.json({ messages: listMessages(tripId, before as string | undefined) });
 });
 
-router.post('/messages', authenticate, validateStringLengths({ text: 5000 }), (req: Request, res: Response) => {
+router.post('/messages', authenticate, validateBody(CreateMessageSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const { tripId } = req.params;
   const { text, reply_to } = req.body;
@@ -247,7 +250,6 @@ router.post('/messages', authenticate, validateStringLengths({ text: 5000 }), (r
   if (!access) return res.status(404).json({ error: 'Trip not found' });
   if (!checkPermission('collab_edit', authReq.user.role, access.user_id, authReq.user.id, access.user_id !== authReq.user.id))
     return res.status(403).json({ error: 'No permission' });
-  if (!text || !text.trim()) return res.status(400).json({ error: 'Message text is required' });
 
   const result = createMessage(tripId, authReq.user.id, text, reply_to);
   if (result.error === 'reply_not_found') return res.status(400).json({ error: 'Reply target message not found' });
@@ -267,7 +269,7 @@ router.post('/messages', authenticate, validateStringLengths({ text: 5000 }), (r
 /*  Reactions                                                          */
 /* ------------------------------------------------------------------ */
 
-router.post('/messages/:id/react', authenticate, (req: Request, res: Response) => {
+router.post('/messages/:id/react', authenticate, validateBody(ReactMessageSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const { tripId, id } = req.params;
   const { emoji } = req.body;
@@ -275,7 +277,6 @@ router.post('/messages/:id/react', authenticate, (req: Request, res: Response) =
   if (!access) return res.status(404).json({ error: 'Trip not found' });
   if (!checkPermission('collab_edit', authReq.user.role, access.user_id, authReq.user.id, access.user_id !== authReq.user.id))
     return res.status(403).json({ error: 'No permission' });
-  if (!emoji) return res.status(400).json({ error: 'Emoji is required' });
 
   const result = addOrRemoveReaction(id, tripId, authReq.user.id, emoji);
   if (!result.found) return res.status(404).json({ error: 'Message not found' });
@@ -314,8 +315,7 @@ router.get('/link-preview', authenticate, async (req: Request, res: Response) =>
 
   try {
     const preview = await fetchLinkPreview(url);
-    const asAny = preview as any;
-    if (asAny.error) return res.status(400).json({ error: asAny.error });
+    if ('error' in preview) return res.status(400).json({ error: (preview as { error: string }).error });
     res.json(preview);
   } catch {
     res.json({ title: null, description: null, image: null, url });

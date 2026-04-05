@@ -9,6 +9,8 @@ import { broadcast } from '../websocket';
 import { AuthRequest, Trip } from '../types';
 import { writeAudit, getClientIp, logInfo } from '../services/auditLog';
 import { checkPermission } from '../services/permissions';
+import { validateBody } from '../middleware/zodValidate';
+import { CreateTripSchema, UpdateTripSchema, AddMemberSchema, CopyTripSchema } from '../schemas/tripSchemas';
 import {
   listTrips,
   createTrip,
@@ -69,13 +71,12 @@ router.get('/', authenticate, (req: Request, res: Response) => {
 
 // ── Create trip ───────────────────────────────────────────────────────────
 
-router.post('/', authenticate, (req: Request, res: Response) => {
+router.post('/', authenticate, validateBody(CreateTripSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   if (!checkPermission('trip_create', authReq.user.role, null, authReq.user.id, false))
     return res.status(403).json({ error: 'No permission to create trips' });
 
   const { title, description, currency, reminder_days } = req.body;
-  if (!title) return res.status(400).json({ error: 'Title is required' });
 
   const toDateStr = (d: Date) => d.toISOString().slice(0, 10);
   const addDays = (d: Date, n: number) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
@@ -117,7 +118,7 @@ router.get('/:id', authenticate, (req: Request, res: Response) => {
 
 // ── Update trip ───────────────────────────────────────────────────────────
 
-router.put('/:id', authenticate, (req: Request, res: Response) => {
+router.put('/:id', authenticate, validateBody(UpdateTripSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const access = canAccessTrip(req.params.id, authReq.user.id);
   if (!access) return res.status(404).json({ error: 'Trip not found' });
@@ -191,8 +192,20 @@ router.post('/:id/cover', authenticate, demoUploadBlock, uploadCover.single('cov
   res.json({ cover_image: coverUrl });
 });
 
+// ── Interfaces for trip-copy entity rows ──────────────────────────────────
+interface OldDay { id: number; day_number: number; date: string | null; notes: string | null; title: string | null; }
+interface OldPlace { id: number; name: string; description: string | null; lat: number | null; lng: number | null; address: string | null; category_id: number | null; price: number | null; currency: string | null; reservation_status: string | null; reservation_notes: string | null; reservation_datetime: string | null; place_time: string | null; end_time: string | null; duration_minutes: number | null; notes: string | null; image_url: string | null; google_place_id: string | null; website: string | null; phone: string | null; transport_mode: string | null; osm_id: string | null; }
+interface OldPlaceTag { place_id: number; tag_id: number; }
+interface OldAssignment { id: number; day_id: number; place_id: number; order_index: number; notes: string | null; reservation_status: string | null; reservation_notes: string | null; reservation_datetime: string | null; assignment_time: string | null; assignment_end_time: string | null; }
+interface OldAccommodation { id: number; place_id: number; start_day_id: number; end_day_id: number; check_in: string | null; check_out: string | null; confirmation: string | null; notes: string | null; }
+interface OldReservation { id: number; day_id: number | null; place_id: number | null; assignment_id: number | null; accommodation_id: number | null; title: string; reservation_time: string | null; reservation_end_time: string | null; location: string | null; confirmation_number: string | null; notes: string | null; status: string | null; type: string | null; metadata: string | null; day_plan_position: number | null; }
+interface OldBudgetItem { category: string | null; name: string; total_price: number; persons: number | null; days: number | null; note: string | null; sort_order: number | null; }
+interface OldBag { id: number; name: string; color: string | null; weight_limit_grams: number | null; sort_order: number | null; }
+interface OldPackingItem { name: string; category: string | null; sort_order: number | null; weight_grams: number | null; bag_id: number | null; }
+interface OldDayNote { day_id: number; text: string; time: string | null; icon: string | null; sort_order: number | null; }
+
 // ── Copy / duplicate a trip ──────────────────────────────────────────────────
-router.post('/:id/copy', authenticate, (req: Request, res: Response) => {
+router.post('/:id/copy', authenticate, validateBody(CopyTripSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   if (!checkPermission('trip_create', authReq.user.role, null, authReq.user.id, false))
     return res.status(403).json({ error: 'No permission to create trips' });
@@ -214,7 +227,7 @@ router.post('/:id/copy', authenticate, (req: Request, res: Response) => {
     const newTripId = tripResult.lastInsertRowid;
 
     // 2. Copy days → build ID map
-    const oldDays = db.prepare('SELECT * FROM days WHERE trip_id = ? ORDER BY day_number').all(req.params.id) as any[];
+    const oldDays = db.prepare('SELECT * FROM days WHERE trip_id = ? ORDER BY day_number').all(req.params.id) as OldDay[];
     const dayMap = new Map<number, number | bigint>();
     const insertDay = db.prepare('INSERT INTO days (trip_id, day_number, date, notes, title) VALUES (?, ?, ?, ?, ?)');
     for (const d of oldDays) {
@@ -223,7 +236,7 @@ router.post('/:id/copy', authenticate, (req: Request, res: Response) => {
     }
 
     // 3. Copy places → build ID map
-    const oldPlaces = db.prepare('SELECT * FROM places WHERE trip_id = ?').all(req.params.id) as any[];
+    const oldPlaces = db.prepare('SELECT * FROM places WHERE trip_id = ?').all(req.params.id) as OldPlace[];
     const placeMap = new Map<number, number | bigint>();
     const insertPlace = db.prepare(`
       INSERT INTO places (trip_id, name, description, lat, lng, address, category_id, price, currency,
@@ -242,7 +255,7 @@ router.post('/:id/copy', authenticate, (req: Request, res: Response) => {
     // 4. Copy place_tags
     const oldTags = db.prepare(`
       SELECT pt.* FROM place_tags pt JOIN places p ON p.id = pt.place_id WHERE p.trip_id = ?
-    `).all(req.params.id) as any[];
+    `).all(req.params.id) as OldPlaceTag[];
     const insertTag = db.prepare('INSERT OR IGNORE INTO place_tags (place_id, tag_id) VALUES (?, ?)');
     for (const t of oldTags) {
       const newPlaceId = placeMap.get(t.place_id);
@@ -252,7 +265,7 @@ router.post('/:id/copy', authenticate, (req: Request, res: Response) => {
     // 5. Copy day_assignments → build ID map
     const oldAssignments = db.prepare(`
       SELECT da.* FROM day_assignments da JOIN days d ON d.id = da.day_id WHERE d.trip_id = ?
-    `).all(req.params.id) as any[];
+    `).all(req.params.id) as OldAssignment[];
     const assignmentMap = new Map<number, number | bigint>();
     const insertAssignment = db.prepare(`
       INSERT INTO day_assignments (day_id, place_id, order_index, notes, reservation_status, reservation_notes, reservation_datetime, assignment_time, assignment_end_time)
@@ -270,7 +283,7 @@ router.post('/:id/copy', authenticate, (req: Request, res: Response) => {
     }
 
     // 6. Copy day_accommodations → build ID map (before reservations, which reference them)
-    const oldAccom = db.prepare('SELECT * FROM day_accommodations WHERE trip_id = ?').all(req.params.id) as any[];
+    const oldAccom = db.prepare('SELECT * FROM day_accommodations WHERE trip_id = ?').all(req.params.id) as OldAccommodation[];
     const accomMap = new Map<number, number | bigint>();
     const insertAccom = db.prepare(`
       INSERT INTO day_accommodations (trip_id, place_id, start_day_id, end_day_id, check_in, check_out, confirmation, notes)
@@ -287,7 +300,7 @@ router.post('/:id/copy', authenticate, (req: Request, res: Response) => {
     }
 
     // 7. Copy reservations
-    const oldReservations = db.prepare('SELECT * FROM reservations WHERE trip_id = ?').all(req.params.id) as any[];
+    const oldReservations = db.prepare('SELECT * FROM reservations WHERE trip_id = ?').all(req.params.id) as OldReservation[];
     const insertReservation = db.prepare(`
       INSERT INTO reservations (trip_id, day_id, place_id, assignment_id, accommodation_id, title, reservation_time, reservation_end_time,
         location, confirmation_number, notes, status, type, metadata, day_plan_position)
@@ -305,7 +318,7 @@ router.post('/:id/copy', authenticate, (req: Request, res: Response) => {
     }
 
     // 8. Copy budget_items (paid_by_user_id reset to null)
-    const oldBudget = db.prepare('SELECT * FROM budget_items WHERE trip_id = ?').all(req.params.id) as any[];
+    const oldBudget = db.prepare('SELECT * FROM budget_items WHERE trip_id = ?').all(req.params.id) as OldBudgetItem[];
     const insertBudget = db.prepare(`
       INSERT INTO budget_items (trip_id, category, name, total_price, persons, days, note, sort_order)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -315,7 +328,7 @@ router.post('/:id/copy', authenticate, (req: Request, res: Response) => {
     }
 
     // 9. Copy packing_bags → build ID map
-    const oldBags = db.prepare('SELECT * FROM packing_bags WHERE trip_id = ?').all(req.params.id) as any[];
+    const oldBags = db.prepare('SELECT * FROM packing_bags WHERE trip_id = ?').all(req.params.id) as OldBag[];
     const bagMap = new Map<number, number | bigint>();
     const insertBag = db.prepare(`
       INSERT INTO packing_bags (trip_id, name, color, weight_limit_grams, sort_order)
@@ -327,7 +340,7 @@ router.post('/:id/copy', authenticate, (req: Request, res: Response) => {
     }
 
     // 10. Copy packing_items (checked reset to 0)
-    const oldPacking = db.prepare('SELECT * FROM packing_items WHERE trip_id = ?').all(req.params.id) as any[];
+    const oldPacking = db.prepare('SELECT * FROM packing_items WHERE trip_id = ?').all(req.params.id) as OldPackingItem[];
     const insertPacking = db.prepare(`
       INSERT INTO packing_items (trip_id, name, checked, category, sort_order, weight_grams, bag_id)
       VALUES (?, ?, 0, ?, ?, ?, ?)
@@ -338,7 +351,7 @@ router.post('/:id/copy', authenticate, (req: Request, res: Response) => {
     }
 
     // 11. Copy day_notes
-    const oldNotes = db.prepare('SELECT * FROM day_notes WHERE trip_id = ?').all(req.params.id) as any[];
+    const oldNotes = db.prepare('SELECT * FROM day_notes WHERE trip_id = ?').all(req.params.id) as OldDayNote[];
     const insertNote = db.prepare(`
       INSERT INTO day_notes (day_id, trip_id, text, time, icon, sort_order)
       VALUES (?, ?, ?, ?, ?, ?)
@@ -395,7 +408,7 @@ router.get('/:id/members', authenticate, (req: Request, res: Response) => {
 
 // ── Add member ────────────────────────────────────────────────────────────
 
-router.post('/:id/members', authenticate, (req: Request, res: Response) => {
+router.post('/:id/members', authenticate, validateBody(AddMemberSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const access = canAccessTrip(req.params.id, authReq.user.id);
   if (!access)

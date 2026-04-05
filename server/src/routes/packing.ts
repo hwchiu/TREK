@@ -4,6 +4,15 @@ import { authenticate } from '../middleware/auth';
 import { broadcast } from '../websocket';
 import { checkPermission } from '../services/permissions';
 import { AuthRequest } from '../types';
+import { validateBody } from '../middleware/zodValidate';
+import {
+  CreatePackingItemSchema,
+  UpdatePackingItemSchema,
+  ReorderPackingSchema,
+  CreateBagSchema,
+  UpdateBagSchema,
+  CategoryAssigneesSchema,
+} from '../schemas/packingSchemas';
 import {
   verifyTripAccess,
   listItems,
@@ -56,7 +65,7 @@ router.post('/import', authenticate, (req: Request, res: Response) => {
   }
 });
 
-router.post('/', authenticate, (req: Request, res: Response) => {
+router.post('/', authenticate, validateBody(CreatePackingItemSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const { tripId } = req.params;
   const { name, category, checked } = req.body;
@@ -67,14 +76,12 @@ router.post('/', authenticate, (req: Request, res: Response) => {
   if (!checkPermission('packing_edit', authReq.user.role, trip.user_id, authReq.user.id, trip.user_id !== authReq.user.id))
     return res.status(403).json({ error: 'No permission' });
 
-  if (!name) return res.status(400).json({ error: 'Item name is required' });
-
   const item = createItem(tripId, { name, category, checked });
   res.status(201).json({ item });
   broadcast(tripId, 'packing:created', { item }, req.headers['x-socket-id'] as string);
 });
 
-router.put('/reorder', authenticate, (req: Request, res: Response) => {
+router.put('/reorder', authenticate, validateBody(ReorderPackingSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const { tripId } = req.params;
   const { orderedIds } = req.body;
@@ -89,7 +96,7 @@ router.put('/reorder', authenticate, (req: Request, res: Response) => {
   res.json({ success: true });
 });
 
-router.put('/:id', authenticate, (req: Request, res: Response) => {
+router.put('/:id', authenticate, validateBody(UpdatePackingItemSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const { tripId, id } = req.params;
   const { name, checked, category, weight_grams, bag_id } = req.body;
@@ -134,7 +141,7 @@ router.get('/bags', authenticate, (req: Request, res: Response) => {
   res.json({ bags });
 });
 
-router.post('/bags', authenticate, (req: Request, res: Response) => {
+router.post('/bags', authenticate, validateBody(CreateBagSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const { tripId } = req.params;
   const { name, color } = req.body;
@@ -142,13 +149,12 @@ router.post('/bags', authenticate, (req: Request, res: Response) => {
   if (!trip) return res.status(404).json({ error: 'Trip not found' });
   if (!checkPermission('packing_edit', authReq.user.role, trip.user_id, authReq.user.id, trip.user_id !== authReq.user.id))
     return res.status(403).json({ error: 'No permission' });
-  if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
   const bag = createBag(tripId, { name, color });
   res.status(201).json({ bag });
   broadcast(tripId, 'packing:bag-created', { bag }, req.headers['x-socket-id'] as string);
 });
 
-router.put('/bags/:bagId', authenticate, (req: Request, res: Response) => {
+router.put('/bags/:bagId', authenticate, validateBody(UpdateBagSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const { tripId, bagId } = req.params;
   const { name, color, weight_limit_grams } = req.body;
@@ -205,7 +211,7 @@ router.get('/category-assignees', authenticate, (req: Request, res: Response) =>
   res.json({ assignees });
 });
 
-router.put('/category-assignees/:categoryName', authenticate, (req: Request, res: Response) => {
+router.put('/category-assignees/:categoryName', authenticate, validateBody(CategoryAssigneesSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const { tripId, categoryName } = req.params;
   const { user_ids } = req.body;

@@ -3,6 +3,14 @@ import { authenticate } from '../middleware/auth';
 import { requireTripAccess } from '../middleware/tripAccess';
 import { broadcast } from '../websocket';
 import { checkPermission } from '../services/permissions';
+import { validateBody } from '../middleware/zodValidate';
+import {
+  CreateAssignmentSchema,
+  ReorderAssignmentsSchema,
+  MoveAssignmentSchema,
+  UpdateAssignmentTimeSchema,
+  AssignmentParticipantsSchema,
+} from '../schemas/assignmentSchemas';
 import {
   getAssignmentWithPlace,
   listDayAssignments,
@@ -31,7 +39,7 @@ router.get('/trips/:tripId/days/:dayId/assignments', authenticate, requireTripAc
   res.json({ assignments: result });
 });
 
-router.post('/trips/:tripId/days/:dayId/assignments', authenticate, requireTripAccess, (req: Request, res: Response) => {
+router.post('/trips/:tripId/days/:dayId/assignments', authenticate, requireTripAccess, validateBody(CreateAssignmentSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   if (!checkPermission('day_edit', authReq.user.role, authReq.trip!.user_id, authReq.user.id, authReq.trip!.user_id !== authReq.user.id))
     return res.status(403).json({ error: 'No permission' });
@@ -61,7 +69,7 @@ router.delete('/trips/:tripId/days/:dayId/assignments/:id', authenticate, requir
   broadcast(tripId, 'assignment:deleted', { assignmentId: Number(id), dayId: Number(dayId) }, req.headers['x-socket-id'] as string);
 });
 
-router.put('/trips/:tripId/days/:dayId/assignments/reorder', authenticate, requireTripAccess, (req: Request, res: Response) => {
+router.put('/trips/:tripId/days/:dayId/assignments/reorder', authenticate, requireTripAccess, validateBody(ReorderAssignmentsSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   if (!checkPermission('day_edit', authReq.user.role, authReq.trip!.user_id, authReq.user.id, authReq.trip!.user_id !== authReq.user.id))
     return res.status(403).json({ error: 'No permission' });
@@ -76,7 +84,7 @@ router.put('/trips/:tripId/days/:dayId/assignments/reorder', authenticate, requi
   broadcast(tripId, 'assignment:reordered', { dayId: Number(dayId), orderedIds }, req.headers['x-socket-id'] as string);
 });
 
-router.put('/trips/:tripId/assignments/:id/move', authenticate, requireTripAccess, (req: Request, res: Response) => {
+router.put('/trips/:tripId/assignments/:id/move', authenticate, requireTripAccess, validateBody(MoveAssignmentSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   if (!checkPermission('day_edit', authReq.user.role, authReq.trip!.user_id, authReq.user.id, authReq.trip!.user_id !== authReq.user.id))
     return res.status(403).json({ error: 'No permission' });
@@ -102,7 +110,7 @@ router.get('/trips/:tripId/assignments/:id/participants', authenticate, requireT
   res.json({ participants });
 });
 
-router.put('/trips/:tripId/assignments/:id/time', authenticate, requireTripAccess, (req: Request, res: Response) => {
+router.put('/trips/:tripId/assignments/:id/time', authenticate, requireTripAccess, validateBody(UpdateAssignmentTimeSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   if (!checkPermission('day_edit', authReq.user.role, authReq.trip!.user_id, authReq.user.id, authReq.trip!.user_id !== authReq.user.id))
     return res.status(403).json({ error: 'No permission' });
@@ -118,14 +126,13 @@ router.put('/trips/:tripId/assignments/:id/time', authenticate, requireTripAcces
   broadcast(Number(tripId), 'assignment:updated', { assignment: updated }, req.headers['x-socket-id'] as string);
 });
 
-router.put('/trips/:tripId/assignments/:id/participants', authenticate, requireTripAccess, (req: Request, res: Response) => {
+router.put('/trips/:tripId/assignments/:id/participants', authenticate, requireTripAccess, validateBody(AssignmentParticipantsSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   if (!checkPermission('day_edit', authReq.user.role, authReq.trip!.user_id, authReq.user.id, authReq.trip!.user_id !== authReq.user.id))
     return res.status(403).json({ error: 'No permission' });
 
   const { tripId, id } = req.params;
   const { user_ids } = req.body;
-  if (!Array.isArray(user_ids)) return res.status(400).json({ error: 'user_ids must be an array' });
 
   const participants = setParticipants(id, user_ids);
   res.json({ participants });

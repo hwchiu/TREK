@@ -3,6 +3,8 @@ import { authenticate } from '../middleware/auth';
 import { broadcast } from '../websocket';
 import { checkPermission } from '../services/permissions';
 import { AuthRequest } from '../types';
+import { validateBody } from '../middleware/zodValidate';
+import { CreateBudgetItemSchema, UpdateBudgetItemSchema, BudgetMembersSchema, TogglePaidSchema } from '../schemas/budgetSchemas';
 import {
   verifyTripAccess,
   listBudgetItems,
@@ -37,7 +39,7 @@ router.get('/summary/per-person', authenticate, (req: Request, res: Response) =>
   res.json({ summary: getPerPersonSummary(tripId) });
 });
 
-router.post('/', authenticate, (req: Request, res: Response) => {
+router.post('/', authenticate, validateBody(CreateBudgetItemSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const { tripId } = req.params;
 
@@ -48,14 +50,13 @@ router.post('/', authenticate, (req: Request, res: Response) => {
     return res.status(403).json({ error: 'No permission' });
 
   const { name } = req.body;
-  if (!name) return res.status(400).json({ error: 'Name is required' });
 
   const item = createBudgetItem(tripId, req.body);
   res.status(201).json({ item });
   broadcast(tripId, 'budget:created', { item }, req.headers['x-socket-id'] as string);
 });
 
-router.put('/:id', authenticate, (req: Request, res: Response) => {
+router.put('/:id', authenticate, validateBody(UpdateBudgetItemSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const { tripId, id } = req.params;
 
@@ -72,7 +73,7 @@ router.put('/:id', authenticate, (req: Request, res: Response) => {
   broadcast(tripId, 'budget:updated', { item: updated }, req.headers['x-socket-id'] as string);
 });
 
-router.put('/:id/members', authenticate, (req: Request, res: Response) => {
+router.put('/:id/members', authenticate, validateBody(BudgetMembersSchema), (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const { tripId, id } = req.params;
 
@@ -83,7 +84,6 @@ router.put('/:id/members', authenticate, (req: Request, res: Response) => {
     return res.status(403).json({ error: 'No permission' });
 
   const { user_ids } = req.body;
-  if (!Array.isArray(user_ids)) return res.status(400).json({ error: 'user_ids must be an array' });
 
   const result = updateMembers(id, tripId, user_ids);
   if (!result) return res.status(404).json({ error: 'Budget item not found' });
