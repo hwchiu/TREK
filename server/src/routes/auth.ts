@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuid } from 'uuid';
+import rateLimit, { MemoryStore } from 'express-rate-limit';
 import { authenticate, optionalAuth, demoUploadBlock } from '../middleware/auth';
 import { AuthRequest, OptionalAuthRequest } from '../types';
 import { writeAudit, getClientIp } from '../services/auditLog';
@@ -13,6 +14,8 @@ import {
   validateInviteToken,
   registerUser,
   loginUser,
+} from '../services/authService';
+import {
   getCurrentUser,
   changePassword,
   deleteAccount,
@@ -27,16 +30,20 @@ import {
   getAppSettings,
   updateAppSettings,
   getTravelStats,
+} from '../services/userService';
+import {
   setupMfa,
   enableMfa,
   disableMfa,
   verifyMfaLogin,
+} from '../services/mfaService';
+import {
   listMcpTokens,
   createMcpToken,
   deleteMcpToken,
   createWsToken,
   createResourceToken,
-} from '../services/authService';
+} from '../services/tokenService';
 
 const router = express.Router();
 
@@ -68,42 +75,66 @@ const avatarUpload = multer({
 });
 
 // ---------------------------------------------------------------------------
-// Rate limiter (middleware concern — stays in route)
+// Rate limiters (express-rate-limit with resettable stores for testing)
 // ---------------------------------------------------------------------------
 
-const RATE_LIMIT_WINDOW = 15 * 60 * 1000;
-const RATE_LIMIT_CLEANUP = 5 * 60 * 1000;
+const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
 
-const loginAttempts = new Map<string, { count: number; first: number }>();
-const mfaAttempts = new Map<string, { count: number; first: number }>();
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, record] of loginAttempts) {
-    if (now - record.first >= RATE_LIMIT_WINDOW) loginAttempts.delete(key);
-  }
-  for (const [key, record] of mfaAttempts) {
-    if (now - record.first >= RATE_LIMIT_WINDOW) mfaAttempts.delete(key);
-  }
-}, RATE_LIMIT_CLEANUP);
+const authStore = new MemoryStore();
+const mfaStore = new MemoryStore();
+const pwdStore = new MemoryStore();
+const mcpStore = new MemoryStore();
+const mfaDisableStore = new MemoryStore();
 
-function rateLimiter(maxAttempts: number, windowMs: number, store = loginAttempts) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const key = req.ip || 'unknown';
-    const now = Date.now();
-    const record = store.get(key);
-    if (record && record.count >= maxAttempts && now - record.first < windowMs) {
-      return res.status(429).json({ error: 'Too many attempts. Please try again later.' });
-    }
-    if (!record || now - record.first >= windowMs) {
-      store.set(key, { count: 1, first: now });
-    } else {
-      record.count++;
-    }
-    next();
-  };
-}
-const authLimiter = rateLimiter(10, RATE_LIMIT_WINDOW);
-const mfaLimiter = rateLimiter(5, RATE_LIMIT_WINDOW, mfaAttempts);
+const authLimiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Please try again later.' },
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  store: authStore,
+});
+
+const mfaLimiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Please try again later.' },
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  store: mfaStore,
+});
+
+const pwdLimiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Please try again later.' },
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  store: pwdStore,
+});
+
+const mcpCreateLimiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Please try again later.' },
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  store: mcpStore,
+});
+
+const mfaDisableLimiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Please try again later.' },
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  store: mfaDisableStore,
+});
 
 // ---------------------------------------------------------------------------
 // Routes
@@ -158,7 +189,7 @@ router.post('/logout', (_req: Request, res: Response) => {
   res.json({ success: true });
 });
 
-router.put('/me/password', authenticate, rateLimiter(5, RATE_LIMIT_WINDOW), (req: Request, res: Response) => {
+router.put('/me/password', authenticate, pwdLimiter, (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const result = changePassword(authReq.user.id, authReq.user.email, req.body);
   if (result.error) return res.status(result.status!).json({ error: result.error });
@@ -277,7 +308,7 @@ router.post('/mfa/enable', authenticate, mfaLimiter, (req: Request, res: Respons
   res.json({ success: true, mfa_enabled: result.mfa_enabled, backup_codes: result.backup_codes });
 });
 
-router.post('/mfa/disable', authenticate, rateLimiter(5, RATE_LIMIT_WINDOW), (req: Request, res: Response) => {
+router.post('/mfa/disable', authenticate, mfaDisableLimiter, (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const result = disableMfa(authReq.user.id, authReq.user.email, req.body);
   if (result.error) return res.status(result.status!).json({ error: result.error });
@@ -292,7 +323,7 @@ router.get('/mcp-tokens', authenticate, (req: Request, res: Response) => {
   res.json({ tokens: listMcpTokens(authReq.user.id) });
 });
 
-router.post('/mcp-tokens', authenticate, rateLimiter(5, RATE_LIMIT_WINDOW), (req: Request, res: Response) => {
+router.post('/mcp-tokens', authenticate, mcpCreateLimiter, (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const result = createMcpToken(authReq.user.id, req.body.name);
   if (result.error) return res.status(result.status!).json({ error: result.error });
@@ -324,5 +355,16 @@ router.post('/resource-token', authenticate, (req: Request, res: Response) => {
 
 export default router;
 
-// Exported for test resets only — do not use in production code
-export { loginAttempts, mfaAttempts };
+// Exported for test resets only — resets all rate limiter state between tests
+export function resetRateLimiters(): void {
+  authStore.resetKey('::ffff:127.0.0.1');
+  authStore.resetKey('127.0.0.1');
+  mfaStore.resetKey('::ffff:127.0.0.1');
+  mfaStore.resetKey('127.0.0.1');
+  pwdStore.resetKey('::ffff:127.0.0.1');
+  pwdStore.resetKey('127.0.0.1');
+  mcpStore.resetKey('::ffff:127.0.0.1');
+  mcpStore.resetKey('127.0.0.1');
+  mfaDisableStore.resetKey('::ffff:127.0.0.1');
+  mfaDisableStore.resetKey('127.0.0.1');
+}

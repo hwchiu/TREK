@@ -67,9 +67,9 @@ import { createApp } from '../../src/app';
 import { createTables } from '../../src/db/schema';
 import { runMigrations } from '../../src/db/migrations';
 import { resetTestDb } from '../helpers/test-db';
-import { createUser } from '../helpers/factories';
+import { createUser, createTrip } from '../helpers/factories';
 import { authCookie } from '../helpers/auth';
-import { loginAttempts, mfaAttempts } from '../../src/routes/auth';
+import { resetRateLimiters } from '../../src/routes/auth';
 
 const app: Application = createApp();
 
@@ -80,8 +80,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   resetTestDb(testDb);
-  loginAttempts.clear();
-  mfaAttempts.clear();
+  resetRateLimiters();
 });
 
 afterAll(() => {
@@ -143,5 +142,196 @@ describe('Immich authentication', () => {
       .put('/api/integrations/immich/settings')
       .send({ url: 'https://example.com', api_key: 'key' });
     expect(res.status).toBe(401);
+  });
+});
+
+// ── Additional Immich Tests ─────────────────────────────────────────────────
+
+describe('Immich endpoint authentication', () => {
+  it('IMMICH-010 — GET /api/integrations/immich/status without auth returns 401', async () => {
+    const res = await request(app).get('/api/integrations/immich/status');
+    expect(res.status).toBe(401);
+  });
+
+  it('IMMICH-011 — POST /api/integrations/immich/test without auth returns 401', async () => {
+    const res = await request(app)
+      .post('/api/integrations/immich/test')
+      .send({ immich_url: 'https://immich.example.com', immich_api_key: 'key' });
+    expect(res.status).toBe(401);
+  });
+
+  it('IMMICH-012 — GET /api/integrations/immich/browse without auth returns 401', async () => {
+    const res = await request(app).get('/api/integrations/immich/browse');
+    expect(res.status).toBe(401);
+  });
+
+  it('IMMICH-013 — GET /api/integrations/immich/albums without auth returns 401', async () => {
+    const res = await request(app).get('/api/integrations/immich/albums');
+    expect(res.status).toBe(401);
+  });
+
+  it('IMMICH-014 — GET /api/integrations/immich/trips/:tripId/photos without auth returns 401', async () => {
+    const res = await request(app).get('/api/integrations/immich/trips/1/photos');
+    expect(res.status).toBe(401);
+  });
+
+  it('IMMICH-015 — POST /api/integrations/immich/search without auth returns 401', async () => {
+    const res = await request(app).post('/api/integrations/immich/search').send({});
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('Immich status and connection (no credentials configured)', () => {
+  it('IMMICH-020 — GET /api/integrations/immich/status returns connected:false when no creds set', async () => {
+    const { user } = createUser(testDb);
+    const res = await request(app)
+      .get('/api/integrations/immich/status')
+      .set('Cookie', authCookie(user.id));
+    // Without immich_url/api_key, service returns connected: false
+    expect(res.status).toBe(200);
+    expect(res.body.connected).toBe(false);
+  });
+
+  it('IMMICH-021 — GET /api/integrations/immich/albums returns 404 when no creds set', async () => {
+    const { user } = createUser(testDb);
+    const res = await request(app)
+      .get('/api/integrations/immich/albums')
+      .set('Cookie', authCookie(user.id));
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBeTruthy();
+  });
+
+  it('IMMICH-022 — GET /api/integrations/immich/browse returns 404 when no creds set', async () => {
+    const { user } = createUser(testDb);
+    const res = await request(app)
+      .get('/api/integrations/immich/browse')
+      .set('Cookie', authCookie(user.id));
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('Immich connection test endpoint', () => {
+  it('IMMICH-030 — POST /api/integrations/immich/test with missing body returns error', async () => {
+    const { user } = createUser(testDb);
+    const res = await request(app)
+      .post('/api/integrations/immich/test')
+      .set('Cookie', authCookie(user.id))
+      .send({});
+    expect(res.status).toBe(200);
+    expect(res.body.connected).toBe(false);
+    expect(res.body.error).toBeTruthy();
+  });
+
+  it('IMMICH-031 — POST /api/integrations/immich/test with only URL (no key) returns error', async () => {
+    const { user } = createUser(testDb);
+    const res = await request(app)
+      .post('/api/integrations/immich/test')
+      .set('Cookie', authCookie(user.id))
+      .send({ immich_url: 'https://immich.example.com' });
+    expect(res.status).toBe(200);
+    expect(res.body.connected).toBe(false);
+  });
+});
+
+describe('Immich trip photo endpoints', () => {
+  it('IMMICH-040 — GET /api/integrations/immich/trips/:tripId/photos returns 404 for non-existent trip', async () => {
+    const { user } = createUser(testDb);
+    const res = await request(app)
+      .get('/api/integrations/immich/trips/99999/photos')
+      .set('Cookie', authCookie(user.id));
+    expect(res.status).toBe(404);
+  });
+
+  it('IMMICH-041 — POST /api/integrations/immich/trips/:tripId/photos returns 404 for non-existent trip', async () => {
+    const { user } = createUser(testDb);
+    const res = await request(app)
+      .post('/api/integrations/immich/trips/99999/photos')
+      .set('Cookie', authCookie(user.id))
+      .send({ asset_ids: ['asset-uuid-1'] });
+    expect(res.status).toBe(404);
+  });
+
+  it('IMMICH-042 — GET /trips/:tripId/photos returns photos array for existing trip', async () => {
+    const { user } = createUser(testDb);
+    const trip = createTrip(testDb, user.id);
+    const res = await request(app)
+      .get(`/api/integrations/immich/trips/${trip.id}/photos`)
+      .set('Cookie', authCookie(user.id));
+    // Trip exists and user has access; no immich credentials but listTripPhotos is DB-only
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.photos)).toBe(true);
+  });
+
+  it('IMMICH-043 — DELETE /trips/:tripId/photos/:assetId returns 404 for non-existent trip', async () => {
+    const { user } = createUser(testDb);
+    const res = await request(app)
+      .delete('/api/integrations/immich/trips/99999/photos/asset-id-1')
+      .set('Cookie', authCookie(user.id));
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('Immich album links', () => {
+  it('IMMICH-050 — GET /trips/:tripId/album-links returns 404 for non-existent trip', async () => {
+    const { user } = createUser(testDb);
+    const res = await request(app)
+      .get('/api/integrations/immich/trips/99999/album-links')
+      .set('Cookie', authCookie(user.id));
+    expect(res.status).toBe(404);
+  });
+
+  it('IMMICH-051 — GET /trips/:tripId/album-links returns empty array for existing trip', async () => {
+    const { user } = createUser(testDb);
+    const trip = createTrip(testDb, user.id);
+    const res = await request(app)
+      .get(`/api/integrations/immich/trips/${trip.id}/album-links`)
+      .set('Cookie', authCookie(user.id));
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.links)).toBe(true);
+    expect(res.body.links.length).toBe(0);
+  });
+
+  it('IMMICH-052 — POST /trips/:tripId/album-links without album_id returns 400', async () => {
+    const { user } = createUser(testDb);
+    const trip = createTrip(testDb, user.id);
+    const res = await request(app)
+      .post(`/api/integrations/immich/trips/${trip.id}/album-links`)
+      .set('Cookie', authCookie(user.id))
+      .send({ album_name: 'My Album' }); // no album_id
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('album_id');
+  });
+
+  it('IMMICH-053 — POST /trips/:tripId/album-links without auth returns 401', async () => {
+    const res = await request(app)
+      .post('/api/integrations/immich/trips/1/album-links')
+      .send({ album_id: 'album-uuid' });
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('Immich asset validation', () => {
+  it('IMMICH-060 — GET /assets/:assetId/info without auth returns 401', async () => {
+    const res = await request(app).get('/api/integrations/immich/assets/some-uuid/info');
+    expect(res.status).toBe(401);
+  });
+
+  it('IMMICH-061 — GET /assets/:assetId/info with invalid assetId returns 400', async () => {
+    const { user } = createUser(testDb);
+    // Asset IDs with path traversal characters should be rejected
+    const res = await request(app)
+      .get('/api/integrations/immich/assets/../etc/passwd/info')
+      .set('Cookie', authCookie(user.id));
+    // Express may 404 on this due to path normalization; either 400 or 404 is fine
+    expect([400, 404]).toContain(res.status);
+  });
+
+  it('IMMICH-062 — GET /assets/:assetId/info returns 404 or error when no immich credentials', async () => {
+    const { user } = createUser(testDb);
+    const res = await request(app)
+      .get('/api/integrations/immich/assets/valid-asset-uuid/info')
+      .set('Cookie', authCookie(user.id));
+    // Without credentials, immich service should return an error
+    expect(res.status).toBeGreaterThanOrEqual(400);
   });
 });

@@ -51,7 +51,7 @@ import { runMigrations } from '../../src/db/migrations';
 import { resetTestDb } from '../helpers/test-db';
 import { createUser, createAdmin, createTrip, addTripMember, createPlace, createReservation } from '../helpers/factories';
 import { authCookie } from '../helpers/auth';
-import { loginAttempts, mfaAttempts } from '../../src/routes/auth';
+import { resetRateLimiters } from '../../src/routes/auth';
 import { invalidatePermissionsCache } from '../../src/services/permissions';
 
 const app: Application = createApp();
@@ -59,8 +59,7 @@ const app: Application = createApp();
 beforeAll(() => { createTables(testDb); runMigrations(testDb); });
 beforeEach(() => {
   resetTestDb(testDb);
-  loginAttempts.clear();
-  mfaAttempts.clear();
+  resetRateLimiters();
   invalidatePermissionsCache();
 });
 afterAll(() => { testDb.close(); });

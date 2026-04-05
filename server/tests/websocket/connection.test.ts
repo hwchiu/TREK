@@ -44,7 +44,7 @@ import { createTables } from '../../src/db/schema';
 import { runMigrations } from '../../src/db/migrations';
 import { resetTestDb } from '../helpers/test-db';
 import { createUser, createTrip } from '../helpers/factories';
-import { loginAttempts, mfaAttempts } from '../../src/routes/auth';
+import { resetRateLimiters } from '../../src/routes/auth';
 import { setupWebSocket } from '../../src/websocket';
 import { createEphemeralToken } from '../../src/services/ephemeralTokens';
 
@@ -73,8 +73,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   resetTestDb(testDb);
-  loginAttempts.clear();
-  mfaAttempts.clear();
+  resetRateLimiters();
 });
 
 /** Buffered WebSocket wrapper that never drops messages. */

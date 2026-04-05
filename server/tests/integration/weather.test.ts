@@ -65,7 +65,7 @@ import { runMigrations } from '../../src/db/migrations';
 import { resetTestDb } from '../helpers/test-db';
 import { createUser } from '../helpers/factories';
 import { authCookie } from '../helpers/auth';
-import { loginAttempts, mfaAttempts } from '../../src/routes/auth';
+import { resetRateLimiters } from '../../src/routes/auth';
 
 const app: Application = createApp();
 
@@ -76,8 +76,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   resetTestDb(testDb);
-  loginAttempts.clear();
-  mfaAttempts.clear();
+  resetRateLimiters();
 });
 
 afterAll(() => {

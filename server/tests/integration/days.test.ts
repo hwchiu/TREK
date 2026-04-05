@@ -46,11 +46,11 @@ import { runMigrations } from '../../src/db/migrations';
 import { resetTestDb } from '../helpers/test-db';
 import { createUser, createTrip, createDay, createPlace, addTripMember } from '../helpers/factories';
 import { authCookie } from '../helpers/auth';
-import { loginAttempts, mfaAttempts } from '../../src/routes/auth';
+import { resetRateLimiters } from '../../src/routes/auth';
 
 const app: Application = createApp();
 beforeAll(() => { createTables(testDb); runMigrations(testDb); });
-beforeEach(() => { resetTestDb(testDb); loginAttempts.clear(); mfaAttempts.clear(); });
+beforeEach(() => { resetTestDb(testDb); resetRateLimiters(); });
 afterAll(() => { testDb.close(); });
 
 // ─────────────────────────────────────────────────────────────────────────────

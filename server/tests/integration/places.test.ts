@@ -49,7 +49,7 @@ import { runMigrations } from '../../src/db/migrations';
 import { resetTestDb } from '../helpers/test-db';
 import { createUser, createAdmin, createTrip, createPlace, addTripMember } from '../helpers/factories';
 import { authCookie } from '../helpers/auth';
-import { loginAttempts, mfaAttempts } from '../../src/routes/auth';
+import { resetRateLimiters } from '../../src/routes/auth';
 
 const app: Application = createApp();
 const GPX_FIXTURE = path.join(__dirname, '../fixtures/test.gpx');
@@ -61,8 +61,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   resetTestDb(testDb);
-  loginAttempts.clear();
-  mfaAttempts.clear();
+  resetRateLimiters();
 });
 
 afterAll(() => {

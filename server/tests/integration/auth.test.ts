@@ -54,7 +54,7 @@ import { runMigrations } from '../../src/db/migrations';
 import { resetTestDb } from '../helpers/test-db';
 import { createUser, createAdmin, createUserWithMfa, createInviteToken } from '../helpers/factories';
 import { authCookie, authHeader } from '../helpers/auth';
-import { loginAttempts, mfaAttempts } from '../../src/routes/auth';
+import { resetRateLimiters } from '../../src/routes/auth';
 
 const app: Application = createApp();
 
@@ -66,8 +66,7 @@ beforeAll(() => {
 beforeEach(() => {
   resetTestDb(testDb);
   // Reset rate limiter state between tests so they don't interfere
-  loginAttempts.clear();
-  mfaAttempts.clear();
+  resetRateLimiters();
 });
 
 afterAll(() => {
@@ -454,7 +453,7 @@ describe('Short-lived tokens', () => {
 
 describe('Rate limiting', () => {
   it('AUTH-004 — login endpoint rate-limits after 10 attempts from the same IP', async () => {
-    // beforeEach has cleared loginAttempts; we fill up exactly to the limit
+    // beforeEach calls resetRateLimiters(); we fill up exactly to the limit
     let lastStatus = 0;
     for (let i = 0; i <= 10; i++) {
       const res = await request(app)

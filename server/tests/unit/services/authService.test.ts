@@ -21,11 +21,13 @@ import {
   stripUserForClient,
   maskKey,
   avatarUrl,
+} from '../../../src/services/authService';
+import {
   normalizeBackupCode,
   hashBackupCode,
   generateBackupCodes,
   parseBackupCodeHashes,
-} from '../../../src/services/authService';
+} from '../../../src/services/mfaService';
 import type { User } from '../../../src/types';
 
 // ── utcSuffix ────────────────────────────────────────────────────────────────
