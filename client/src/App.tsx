@@ -8,8 +8,6 @@ import TripPlannerPage from './pages/TripPlannerPage'
 import FilesPage from './pages/FilesPage'
 import AdminPage from './pages/AdminPage'
 import SettingsPage from './pages/SettingsPage'
-import VacayPage from './pages/VacayPage'
-import AtlasPage from './pages/AtlasPage'
 import SharedTripPage from './pages/SharedTripPage'
 import InAppNotificationsPage from './pages/InAppNotificationsPage.tsx'
 import { ToastContainer } from './components/shared/Toast'
@@ -202,22 +200,6 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <SettingsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/vacay"
-            element={
-              <ProtectedRoute>
-                <VacayPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/atlas"
-            element={
-              <ProtectedRoute>
-                <AtlasPage />
               </ProtectedRoute>
             }
           />

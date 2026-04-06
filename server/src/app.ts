@@ -31,8 +31,6 @@ import budgetRoutes from './routes/budget';
 import collabRoutes from './routes/collab';
 import backupRoutes from './routes/backup';
 import oidcRoutes from './routes/oidc';
-import vacayRoutes from './routes/vacay';
-import atlasRoutes from './routes/atlas';
 import immichRoutes from './routes/immich';
 import notificationRoutes from './routes/notifications';
 import shareRoutes from './routes/share';
@@ -201,8 +199,6 @@ export function createApp(): express.Application {
   });
 
   // Addon routes
-  app.use('/api/addons/vacay', vacayRoutes);
-  app.use('/api/addons/atlas', atlasRoutes);
   app.use('/api/integrations/immich', immichRoutes);
   app.use('/api/maps', mapsRoutes);
   app.use('/api/flights', flightsRoutes);

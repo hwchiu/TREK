@@ -1,50 +1,31 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { MapContainer, TileLayer, Marker, Tooltip, useMap } from 'react-leaflet'
-import L from 'leaflet'
 import { useTranslation, SUPPORTED_LANGUAGES } from '../i18n'
 import { useSettingsStore } from '../store/settingsStore'
 import { getLocaleForLanguage } from '../i18n'
-import { shareApi } from '../api/client'
-import { getCategoryIcon } from '../components/shared/categoryIcons'
-import { createElement } from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
+import { shareApi, authApi } from '../api/client'
+import { MapWrapper } from '../components/Map/MapWrapper'
+import { useAuthStore } from '../store/authStore'
 import { Clock, MapPin, FileText, Train, Plane, Bus, Car, Ship, Ticket, Hotel, Map, Luggage, Wallet, MessageCircle } from 'lucide-react'
 
 const TRANSPORT_TYPES = new Set(['flight', 'train', 'bus', 'car', 'cruise'])
 const TRANSPORT_ICONS = { flight: Plane, train: Train, bus: Bus, car: Car, cruise: Ship }
 
-function createMarkerIcon(place: any) {
-  const cat = place.category
-  const color = cat?.color || '#6366f1'
-  const CatIcon = getCategoryIcon(cat?.icon)
-  const iconSvg = renderToStaticMarkup(createElement(CatIcon, { size: 14, strokeWidth: 2, color: 'white' }))
-  return L.divIcon({
-    className: '',
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-    html: `<div style="width:28px;height:28px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.3);border:2px solid white;">${iconSvg}</div>`,
-  })
-}
-
-function FitBoundsToPlaces({ places }: { places: any[] }) {
-  const map = useMap()
-  useEffect(() => {
-    if (places.length === 0) return
-    const bounds = L.latLngBounds(places.map(p => [p.lat, p.lng]))
-    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 })
-  }, [places, map])
-  return null
-}
-
 export default function SharedTripPage() {
   const { token } = useParams<{ token: string }>()
   const { t, locale } = useTranslation()
+  const { setMapsConfig } = useAuthStore()
   const [data, setData] = useState<any>(null)
   const [error, setError] = useState(false)
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
   const [activeTab, setActiveTab] = useState('plan')
   const [showLangPicker, setShowLangPicker] = useState(false)
+
+  useEffect(() => {
+    authApi.getAppConfig().then(cfg => {
+      if (cfg.maps_api_key) setMapsConfig(cfg.maps_api_key)
+    }).catch(() => {})
+  }, [setMapsConfig])
 
   useEffect(() => {
     if (!token) return
@@ -76,7 +57,6 @@ export default function SharedTripPage() {
     ? (assignments[String(selectedDay)] || []).map((a: any) => a.place).filter((p: any) => p?.lat && p?.lng)
     : (places || []).filter((p: any) => p?.lat && p?.lng)
 
-  const center = mapPlaces.length > 0 ? [mapPlaces[0].lat, mapPlaces[0].lng] : [48.85, 2.35]
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-secondary, #f3f4f6)', fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif" }}>
@@ -166,16 +146,24 @@ export default function SharedTripPage() {
 
         {/* Map */}
         {activeTab === 'plan' && (<>
-        <div style={{ borderRadius: 16, overflow: 'hidden', height: 300, marginBottom: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
-          <MapContainer center={center as [number, number]} zoom={11} zoomControl={false} style={{ width: '100%', height: '100%' }}>
-            <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" referrerPolicy="strict-origin-when-cross-origin" />
-            <FitBoundsToPlaces places={mapPlaces} />
-            {mapPlaces.map((p: any) => (
-              <Marker key={p.id} position={[p.lat, p.lng]} icon={createMarkerIcon(p)}>
-                <Tooltip>{p.name}</Tooltip>
-              </Marker>
-            ))}
-          </MapContainer>
+        <div style={{ borderRadius: 16, overflow: 'hidden', height: 300, marginBottom: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.08)', position: 'relative' }}>
+          <MapWrapper
+            places={mapPlaces}
+            dayPlaces={[]}
+            route={null}
+            routeSegments={null}
+            selectedPlaceId={null}
+            onMarkerClick={null}
+            onMapClick={null}
+            onMapContextMenu={null}
+            center={mapPlaces.length > 0 ? [mapPlaces[0].lat, mapPlaces[0].lng] : [48.85, 2.35]}
+            zoom={11}
+            fitKey={selectedDay}
+            dayOrderMap={[]}
+            leftWidth={0}
+            rightWidth={0}
+            hasInspector={false}
+          />
         </div>
 
         {/* Day Plan */}

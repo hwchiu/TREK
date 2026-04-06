@@ -288,17 +288,4 @@ export function registerResources(server: McpServer, userId: number): void {
       return jsonContent(uri.href, items);
     }
   );
-
-  // User's visited countries
-  server.registerResource(
-    'visited-countries',
-    'trek://visited-countries',
-    { description: 'Countries you have marked as visited in Atlas' },
-    async (uri) => {
-      const countries = db.prepare(
-        'SELECT country_code, created_at FROM visited_countries WHERE user_id = ? ORDER BY created_at DESC'
-      ).all(userId);
-      return jsonContent(uri.href, countries);
-    }
-  );
 }

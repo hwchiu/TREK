@@ -1013,39 +1013,7 @@ export function registerTools(server: McpServer, userId: number): void {
     }
   );
 
-  // --- ATLAS ---
-
-  server.registerTool(
-    'mark_country_visited',
-    {
-      description: 'Mark a country as visited in your Atlas.',
-      inputSchema: {
-        country_code: z.string().length(2).toUpperCase().describe('ISO 3166-1 alpha-2 country code (e.g. "FR", "JP")'),
-      },
-    },
-    async ({ country_code }) => {
-      if (isDemoUser(userId)) return demoDenied();
-      db.prepare('INSERT OR IGNORE INTO visited_countries (user_id, country_code) VALUES (?, ?)').run(userId, country_code.toUpperCase());
-      return ok({ success: true, country_code: country_code.toUpperCase() });
-    }
-  );
-
-  server.registerTool(
-    'unmark_country_visited',
-    {
-      description: 'Remove a country from your visited countries in Atlas.',
-      inputSchema: {
-        country_code: z.string().length(2).toUpperCase().describe('ISO 3166-1 alpha-2 country code'),
-      },
-    },
-    async ({ country_code }) => {
-      if (isDemoUser(userId)) return demoDenied();
-      db.prepare('DELETE FROM visited_countries WHERE user_id = ? AND country_code = ?').run(userId, country_code.toUpperCase());
-      return ok({ success: true, country_code: country_code.toUpperCase() });
-    }
-  );
-
-  // --- COLLAB NOTES ---
+    // --- COLLAB NOTES ---
 
   server.registerTool(
     'create_collab_note',

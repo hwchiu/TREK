@@ -1042,7 +1042,6 @@ export default function AdminPage(): React.ReactElement {
                         { key: 'notify_trip_invite', label: t('settings.notifyTripInvite') },
                         { key: 'notify_booking_change', label: t('settings.notifyBookingChange') },
                         { key: 'notify_trip_reminder', label: t('settings.notifyTripReminder') },
-                        { key: 'notify_vacay_invite', label: t('settings.notifyVacayInvite') },
                         { key: 'notify_photos_shared', label: t('settings.notifyPhotosShared') },
                         { key: 'notify_collab_message', label: t('settings.notifyCollabMessage') },
                         { key: 'notify_packing_tagged', label: t('settings.notifyPackingTagged') },
@@ -1131,7 +1130,7 @@ export default function AdminPage(): React.ReactElement {
                   <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
                     <button
                       onClick={async () => {
-                        const notifKeys = ['notification_channel', 'notification_webhook_url', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from', 'smtp_skip_tls_verify', 'notify_trip_invite', 'notify_booking_change', 'notify_trip_reminder', 'notify_vacay_invite', 'notify_photos_shared', 'notify_collab_message', 'notify_packing_tagged']
+                        const notifKeys = ['notification_channel', 'notification_webhook_url', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from', 'smtp_skip_tls_verify', 'notify_trip_invite', 'notify_booking_change', 'notify_trip_reminder', 'notify_photos_shared', 'notify_collab_message', 'notify_packing_tagged']
                         const payload: Record<string, string> = {}
                         for (const k of notifKeys) { if (smtpValues[k] !== undefined) payload[k] = smtpValues[k] }
                         try {
