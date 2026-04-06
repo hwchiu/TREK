@@ -532,6 +532,10 @@ function runMigrations(db: Database.Database): void {
     () => {
       try { db.exec('ALTER TABLE users ADD COLUMN flight_api_key TEXT'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
     },
+    // Map provider preference per user ('openstreetmap' | 'google')
+    () => {
+      try { db.exec("ALTER TABLE users ADD COLUMN maps_provider TEXT NOT NULL DEFAULT 'openstreetmap'"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+    },
   ];
 
   if (currentVersion < migrations.length) {

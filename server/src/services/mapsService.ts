@@ -76,6 +76,14 @@ export function getMapsKey(userId: number): string | null {
   return decrypt_api_key(admin?.maps_api_key) || null;
 }
 
+export function getMapsProvider(userId: number): 'google' | 'openstreetmap' {
+  const user = db.prepare('SELECT maps_provider FROM users WHERE id = ?').get(userId) as { maps_provider?: string } | undefined;
+  if (user?.maps_provider === 'google') return 'google';
+  // Fallback: check admin setting
+  const admin = db.prepare("SELECT maps_provider FROM users WHERE role = 'admin' LIMIT 1").get() as { maps_provider?: string } | undefined;
+  return admin?.maps_provider === 'google' ? 'google' : 'openstreetmap';
+}
+
 // ── Nominatim search ─────────────────────────────────────────────────────────
 
 export async function searchNominatim(query: string, lang?: string) {
@@ -454,7 +462,25 @@ export async function getPlacePhoto(
 
 // ── Reverse geocoding ────────────────────────────────────────────────────────
 
-export async function reverseGeocode(lat: string, lng: string, lang?: string): Promise<{ name: string | null; address: string | null }> {
+export async function reverseGeocode(lat: string, lng: string, lang?: string, userId?: number): Promise<{ name: string | null; address: string | null }> {
+  // Use Google Geocoding API when provider is 'google' and key is available
+  if (userId !== undefined && getMapsProvider(userId) === 'google') {
+    const apiKey = getMapsKey(userId);
+    if (apiKey) {
+      const params = new URLSearchParams({ latlng: `${lat},${lng}`, key: apiKey, language: lang || 'en' });
+      const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?${params}`);
+      if (res.ok) {
+        const data = await res.json() as { results?: { formatted_address?: string; address_components?: { long_name: string; types: string[] }[] }[]; status?: string };
+        if (data.status === 'OK' && data.results?.[0]) {
+          const result = data.results[0];
+          const nameComp = result.address_components?.find(c => c.types.includes('point_of_interest') || c.types.includes('establishment') || c.types.includes('premise'));
+          return { name: nameComp?.long_name || null, address: result.formatted_address || null };
+        }
+      }
+    }
+  }
+
+  // Fallback: Nominatim
   const params = new URLSearchParams({
     lat, lon: lng, format: 'json', addressdetails: '1', zoom: '18',
     'accept-language': lang || 'en',
@@ -471,7 +497,7 @@ export async function reverseGeocode(lat: string, lng: string, lang?: string): P
 
 // ── Resolve Google Maps URL ──────────────────────────────────────────────────
 
-export async function resolveGoogleMapsUrl(url: string): Promise<{ lat: number; lng: number; name: string | null; address: string | null }> {
+export async function resolveGoogleMapsUrl(url: string, userId?: number): Promise<{ lat: number; lng: number; name: string | null; address: string | null }> {
   let resolvedUrl = url;
 
   // Follow redirects for short URLs (goo.gl, maps.app.goo.gl)
@@ -513,14 +539,39 @@ export async function resolveGoogleMapsUrl(url: string): Promise<{ lat: number; 
     throw Object.assign(new Error('Could not extract coordinates from URL'), { status: 400 });
   }
 
-  // Reverse geocode to get address
+  // Reverse geocode to get address — prefer Google when provider is 'google'
+  let resolvedName: string | null = placeName;
+  let resolvedAddress: string | null = null;
+
+  if (userId !== undefined && getMapsProvider(userId) === 'google') {
+    const apiKey = getMapsKey(userId);
+    if (apiKey) {
+      const gRes = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`,
+        { signal: AbortSignal.timeout(8000) }
+      );
+      if (gRes.ok) {
+        const gData = await gRes.json() as { results?: { formatted_address?: string; address_components?: { long_name: string; types: string[] }[] }[]; status?: string };
+        if (gData.status === 'OK' && gData.results?.[0]) {
+          resolvedAddress = gData.results[0].formatted_address || null;
+          if (!resolvedName) {
+            const nameComp = gData.results[0].address_components?.find(c => c.types.includes('point_of_interest') || c.types.includes('establishment'));
+            resolvedName = nameComp?.long_name || null;
+          }
+          return { lat, lng, name: resolvedName, address: resolvedAddress };
+        }
+      }
+    }
+  }
+
+  // Fallback: Nominatim
   const nominatimRes = await fetch(
     `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
     { headers: { 'User-Agent': 'TREK-Travel-Planner/1.0' }, signal: AbortSignal.timeout(8000) }
   );
   const nominatim = await nominatimRes.json() as { display_name?: string; name?: string; address?: Record<string, string> };
 
-  const name = placeName || nominatim.name || nominatim.address?.tourism || nominatim.address?.building || null;
+  const name = resolvedName || nominatim.name || nominatim.address?.tourism || nominatim.address?.building || null;
   const address = nominatim.display_name || null;
 
   return { lat, lng, name, address };

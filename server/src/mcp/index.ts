@@ -19,7 +19,7 @@ interface McpSession {
 const sessions = new Map<string, McpSession>();
 
 const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
-export const MAX_SESSIONS_PER_USER = 5;
+export const MAX_SESSIONS_PER_USER = 20;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
 const parsed = Number.parseInt(process.env.MCP_RATE_LIMIT ?? "");
 export const RATE_LIMIT_MAX = Number.isFinite(parsed) && parsed > 0 ? parsed : 60000; // requests per minute per user
@@ -159,14 +159,31 @@ export async function mcpHandler(req: Request, res: Response): Promise<void> {
   }
 
   // Only POST can initialize a new session
+  // Return 405 (not 400) so mcp-remote clients gracefully ignore it
   if (req.method !== 'POST') {
-    res.status(400).json({ error: 'Missing mcp-session-id header' });
+    res.status(405).json({ error: 'Method Not Allowed: POST required to initialize a session' });
     return;
   }
 
   if (countSessionsForUser(user.id) >= MAX_SESSIONS_PER_USER) {
-    res.status(429).json({ error: 'Session limit reached. Close an existing session before opening a new one.' });
-    return;
+    // Evict the oldest session for this user instead of rejecting
+    let oldestSid: string | null = null;
+    let oldestActivity = Infinity;
+    for (const [sid, session] of sessions) {
+      if (session.userId === user.id && session.lastActivity < oldestActivity) {
+        oldestActivity = session.lastActivity;
+        oldestSid = sid;
+      }
+    }
+    if (oldestSid) {
+      const evicted = sessions.get(oldestSid)!;
+      try { evicted.server.close(); } catch { /* ignore */ }
+      try { evicted.transport.close(); } catch { /* ignore */ }
+      sessions.delete(oldestSid);
+    } else {
+      res.status(429).json({ error: 'Session limit reached. Close an existing session before opening a new one.' });
+      return;
+    }
   }
 
   // Create a new per-user MCP server and session

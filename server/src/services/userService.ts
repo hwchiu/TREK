@@ -124,22 +124,23 @@ export function updateMapsKey(userId: number, maps_api_key: string | null | unde
 
 export function updateApiKeys(
   userId: number,
-  body: { maps_api_key?: string; openweather_api_key?: string; flight_api_key?: string }
+  body: { maps_api_key?: string; openweather_api_key?: string; flight_api_key?: string; maps_provider?: string }
 ) {
-  const current = db.prepare('SELECT maps_api_key, openweather_api_key, flight_api_key FROM users WHERE id = ?').get(userId) as (Pick<User, 'maps_api_key' | 'openweather_api_key'> & { flight_api_key?: string | null }) | undefined;
+  const current = db.prepare('SELECT maps_api_key, openweather_api_key, flight_api_key, maps_provider FROM users WHERE id = ?').get(userId) as (Pick<User, 'maps_api_key' | 'openweather_api_key'> & { flight_api_key?: string | null; maps_provider?: string }) | undefined;
 
   db.prepare(
-    'UPDATE users SET maps_api_key = ?, openweather_api_key = ?, flight_api_key = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+    'UPDATE users SET maps_api_key = ?, openweather_api_key = ?, flight_api_key = ?, maps_provider = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
   ).run(
     body.maps_api_key !== undefined ? maybe_encrypt_api_key(body.maps_api_key) : current!.maps_api_key,
     body.openweather_api_key !== undefined ? maybe_encrypt_api_key(body.openweather_api_key) : current!.openweather_api_key,
     body.flight_api_key !== undefined ? maybe_encrypt_api_key(body.flight_api_key) : (current?.flight_api_key ?? null),
+    body.maps_provider !== undefined ? body.maps_provider : (current?.maps_provider ?? 'openstreetmap'),
     userId
   );
 
   const updated = db.prepare(
-    'SELECT id, username, email, role, maps_api_key, openweather_api_key, flight_api_key, avatar, mfa_enabled FROM users WHERE id = ?'
-  ).get(userId) as (Pick<User, 'id' | 'username' | 'email' | 'role' | 'maps_api_key' | 'openweather_api_key' | 'avatar' | 'mfa_enabled'> & { flight_api_key?: string | null }) | undefined;
+    'SELECT id, username, email, role, maps_api_key, openweather_api_key, flight_api_key, maps_provider, avatar, mfa_enabled FROM users WHERE id = ?'
+  ).get(userId) as (Pick<User, 'id' | 'username' | 'email' | 'role' | 'maps_api_key' | 'openweather_api_key' | 'avatar' | 'mfa_enabled'> & { flight_api_key?: string | null; maps_provider?: string }) | undefined;
 
   const u = updated ? { ...updated, mfa_enabled: !!(updated.mfa_enabled === 1 || updated.mfa_enabled === true) } : undefined;
   return {
@@ -150,9 +151,9 @@ export function updateApiKeys(
 
 export function updateSettings(
   userId: number,
-  body: { maps_api_key?: string; openweather_api_key?: string; flight_api_key?: string; username?: string; email?: string }
+  body: { maps_api_key?: string; openweather_api_key?: string; flight_api_key?: string; maps_provider?: string; username?: string; email?: string }
 ): { error?: string; status?: number; success?: boolean; user?: Record<string, unknown> } {
-  const { maps_api_key, openweather_api_key, flight_api_key, username, email } = body;
+  const { maps_api_key, openweather_api_key, flight_api_key, maps_provider, username, email } = body;
 
   if (username !== undefined) {
     const trimmed = username.trim();
@@ -182,6 +183,7 @@ export function updateSettings(
   if (maps_api_key !== undefined) { updates.push('maps_api_key = ?'); params.push(maybe_encrypt_api_key(maps_api_key)); }
   if (openweather_api_key !== undefined) { updates.push('openweather_api_key = ?'); params.push(maybe_encrypt_api_key(openweather_api_key)); }
   if (flight_api_key !== undefined) { updates.push('flight_api_key = ?'); params.push(maybe_encrypt_api_key(flight_api_key)); }
+  if (maps_provider !== undefined) { updates.push('maps_provider = ?'); params.push(maps_provider); }
   if (username !== undefined) { updates.push('username = ?'); params.push(username.trim()); }
   if (email !== undefined) { updates.push('email = ?'); params.push(email.trim()); }
 
@@ -192,8 +194,8 @@ export function updateSettings(
   }
 
   const updated = db.prepare(
-    'SELECT id, username, email, role, maps_api_key, openweather_api_key, flight_api_key, avatar, mfa_enabled FROM users WHERE id = ?'
-  ).get(userId) as (Pick<User, 'id' | 'username' | 'email' | 'role' | 'maps_api_key' | 'openweather_api_key' | 'avatar' | 'mfa_enabled'> & { flight_api_key?: string | null }) | undefined;
+    'SELECT id, username, email, role, maps_api_key, openweather_api_key, flight_api_key, maps_provider, avatar, mfa_enabled FROM users WHERE id = ?'
+  ).get(userId) as (Pick<User, 'id' | 'username' | 'email' | 'role' | 'maps_api_key' | 'openweather_api_key' | 'avatar' | 'mfa_enabled'> & { flight_api_key?: string | null; maps_provider?: string }) | undefined;
 
   const u = updated ? { ...updated, mfa_enabled: !!(updated.mfa_enabled === 1 || updated.mfa_enabled === true) } : undefined;
   return {
@@ -204,8 +206,8 @@ export function updateSettings(
 
 export function getSettings(userId: number): { error?: string; status?: number; settings?: Record<string, unknown> } {
   const user = db.prepare(
-    'SELECT role, maps_api_key, openweather_api_key, flight_api_key FROM users WHERE id = ?'
-  ).get(userId) as (Pick<User, 'role' | 'maps_api_key' | 'openweather_api_key'> & { flight_api_key?: string | null }) | undefined;
+    'SELECT role, maps_api_key, openweather_api_key, flight_api_key, maps_provider FROM users WHERE id = ?'
+  ).get(userId) as (Pick<User, 'role' | 'maps_api_key' | 'openweather_api_key'> & { flight_api_key?: string | null; maps_provider?: string }) | undefined;
   if (user?.role !== 'admin') return { error: 'Admin access required', status: 403 };
 
   return {
@@ -213,6 +215,7 @@ export function getSettings(userId: number): { error?: string; status?: number; 
       maps_api_key: decrypt_api_key(user.maps_api_key),
       openweather_api_key: decrypt_api_key(user.openweather_api_key),
       flight_api_key: decrypt_api_key(user.flight_api_key),
+      maps_provider: user.maps_provider ?? 'openstreetmap',
     },
   };
 }
