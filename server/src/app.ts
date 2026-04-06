@@ -71,13 +71,14 @@ export function createApp(): express.Application {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://unpkg.com"],
-        imgSrc: ["'self'", "data:", "blob:", "https:"],
+        scriptSrc: ["'self'", "https://maps.googleapis.com", "https://maps.gstatic.com"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://unpkg.com", "https://maps.googleapis.com", "https://maps.gstatic.com"],
+        imgSrc: ["'self'", "data:", "blob:", "https:", "https://*.googleapis.com", "https://*.gstatic.com"],
         connectSrc: [
           "'self'", "ws:", "wss:",
           "https://nominatim.openstreetmap.org", "https://overpass-api.de",
-          "https://places.googleapis.com", "https://api.openweathermap.org",
+          "https://places.googleapis.com", "https://maps.googleapis.com",
+          "https://api.openweathermap.org",
           "https://en.wikipedia.org", "https://commons.wikimedia.org",
           "https://*.basemaps.cartocdn.com", "https://*.tile.openstreetmap.org",
           "https://unpkg.com", "https://open-meteo.com", "https://api.open-meteo.com",
@@ -86,7 +87,7 @@ export function createApp(): express.Application {
         ],
         fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
         objectSrc: ["'none'"],
-        frameSrc: ["'none'"],
+        frameSrc: ["'self'", "https://www.google.com"],
         frameAncestors: ["'self'"],
         upgradeInsecureRequests: shouldForceHttps ? [] : null
       }
