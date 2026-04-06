@@ -81,8 +81,8 @@ describe('getEventText', () => {
     expect(result.body).toContain('Bob');
   });
 
-  it('all 7 event types produce non-empty title and body in English', () => {
-    const events = ['trip_invite', 'booking_change', 'trip_reminder', 'vacay_invite', 'photos_shared', 'collab_message', 'packing_tagged'] as const;
+  it('all 6 event types produce non-empty title and body in English', () => {
+    const events = ['trip_invite', 'booking_change', 'trip_reminder', 'photos_shared', 'collab_message', 'packing_tagged'] as const;
     for (const event of events) {
       const result = getEventText('en', event, params);
       expect(result.title, `title for ${event}`).toBeTruthy();
@@ -90,8 +90,8 @@ describe('getEventText', () => {
     }
   });
 
-  it('all 7 event types produce non-empty title and body in German', () => {
-    const events = ['trip_invite', 'booking_change', 'trip_reminder', 'vacay_invite', 'photos_shared', 'collab_message', 'packing_tagged'] as const;
+  it('all 6 event types produce non-empty title and body in German', () => {
+    const events = ['trip_invite', 'booking_change', 'trip_reminder', 'photos_shared', 'collab_message', 'packing_tagged'] as const;
     for (const event of events) {
       const result = getEventText('de', event, params);
       expect(result.title, `de title for ${event}`).toBeTruthy();

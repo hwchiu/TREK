@@ -224,11 +224,6 @@ export default function PlaceFormModal({
       <form onSubmit={handleSubmit} className="space-y-4" onPaste={handlePaste}>
         {/* Place Search */}
         <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-          {!hasMapsKey && (
-            <p className="mb-2 text-xs" style={{ color: 'var(--text-faint)' }}>
-              {t('places.osmActive')}
-            </p>
-          )}
           <div className="flex gap-2">
             <input
               type="text"

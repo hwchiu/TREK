@@ -1,6 +1,5 @@
 import { memo } from 'react'
 import { useAuthStore } from '../../store/authStore'
-import { MapView } from './MapView'
 import { GoogleMapView } from './GoogleMapView'
 import type { Place } from '../../types'
 
@@ -23,22 +22,18 @@ interface MapWrapperProps {
 }
 
 export const MapWrapper = memo(function MapWrapper(props: MapWrapperProps) {
-  const { mapsProvider, mapsApiKey } = useAuthStore()
+  const { mapsApiKey } = useAuthStore()
 
-  if (mapsProvider === 'google' && mapsApiKey) {
-    return (
-      <GoogleMapView
-        apiKey={mapsApiKey}
-        places={props.places}
-        selectedPlaceId={props.selectedPlaceId}
-        onMarkerClick={props.onMarkerClick}
-        onMapClick={props.onMapClick}
-        center={props.center}
-        zoom={props.zoom}
-        route={props.route ?? null}
-      />
-    )
-  }
-
-  return <MapView {...props} />
+  return (
+    <GoogleMapView
+      apiKey={mapsApiKey ?? ''}
+      places={props.places}
+      selectedPlaceId={props.selectedPlaceId}
+      onMarkerClick={props.onMarkerClick}
+      onMapClick={props.onMapClick}
+      center={props.center}
+      zoom={props.zoom}
+      route={props.route ?? null}
+    />
+  )
 })

@@ -41,8 +41,6 @@ const texts: Record<string, DemoTexts> = {
     ],
     addonsTitle: 'Modulare Addons (in der Vollversion deaktivierbar)',
     addons: [
-      ['Vacay', 'Urlaubsplaner mit Kalender, Feiertagen & Fusion'],
-      ['Atlas', 'Weltkarte mit besuchten Laendern & Reisestatistiken'],
       ['Packliste', 'Checklisten pro Reise'],
       ['Budget', 'Kostenplanung mit Splitting'],
       ['Dokumente', 'Dateien an Reisen anhaengen'],
@@ -73,8 +71,6 @@ const texts: Record<string, DemoTexts> = {
     ],
     addonsTitle: 'Modular Addons (can be deactivated in full version)',
     addons: [
-      ['Vacay', 'Vacation planner with calendar, holidays & user fusion'],
-      ['Atlas', 'World map with visited countries & travel stats'],
       ['Packing', 'Checklists per trip'],
       ['Budget', 'Expense tracking with splitting'],
       ['Documents', 'Attach files to trips'],
@@ -105,8 +101,6 @@ const texts: Record<string, DemoTexts> = {
     ],
     addonsTitle: 'Complementos modulares (se pueden desactivar en la versión completa)',
     addons: [
-      ['Vacaciones', 'Planificador de vacaciones con calendario, festivos y fusión de usuarios'],
-      ['Atlas', 'Mapa del mundo con países visitados y estadísticas de viaje'],
       ['Equipaje', 'Listas de comprobación para cada viaje'],
       ['Presupuesto', 'Control de gastos con reparto'],
       ['Documentos', 'Adjunta archivos a los viajes'],
@@ -137,8 +131,6 @@ const texts: Record<string, DemoTexts> = {
     ],
     addonsTitle: 'إضافات مرنة (يمكن تعطيلها في النسخة الكاملة)',
     addons: [
-      ['Vacay', 'مخطط إجازات مع تقويم وعطل ودمج مستخدمين'],
-      ['Atlas', 'خريطة عالمية مع الدول التي تمت زيارتها وإحصاءات السفر'],
       ['Packing', 'قوائم تجهيز لكل رحلة'],
       ['Budget', 'تتبع المصروفات مع التقسيم'],
       ['Documents', 'إرفاق الملفات بالرحلات'],

@@ -18,7 +18,7 @@ export const ADMIN_SETTINGS_KEYS = [
   'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from', 'smtp_skip_tls_verify',
   'notification_webhook_url', 'notification_channel',
   'notify_trip_invite', 'notify_booking_change', 'notify_trip_reminder',
-  'notify_vacay_invite', 'notify_photos_shared', 'notify_collab_message', 'notify_packing_tagged',
+  'notify_photos_shared', 'notify_collab_message', 'notify_packing_tagged',
 ];
 
 const avatarDir = path.join(__dirname, '../../uploads/avatars');

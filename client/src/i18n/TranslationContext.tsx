@@ -1,51 +1,26 @@
 import React, { createContext, useContext, useEffect, useMemo, ReactNode } from 'react'
 import { useSettingsStore } from '../store/settingsStore'
-import de from './translations/de'
 import en from './translations/en'
-import es from './translations/es'
-import fr from './translations/fr'
-import hu from './translations/hu'
-import it from './translations/it'
-import ru from './translations/ru'
-import zh from './translations/zh'
 import zhTW from './translations/zh-tw'
-import nl from './translations/nl'
-import ar from './translations/ar'
-import br from './translations/br'
-import cs from './translations/cs'
-import pl from './translations/pl'
 
 type TranslationStrings = Record<string, string | { name: string; category: string }[]>
 
 export const SUPPORTED_LANGUAGES = [
-  { value: 'de', label: 'Deutsch' },
   { value: 'en', label: 'English' },
-  { value: 'es', label: 'Español' },
-  { value: 'fr', label: 'Français' },
-  { value: 'hu', label: 'Magyar' },
-  { value: 'nl', label: 'Nederlands' },
-  { value: 'br', label: 'Português (Brasil)' },
-  { value: 'cs', label: 'Česky' },
-  { value: 'pl', label: 'Polski' },
-  { value: 'ru', label: 'Русский' },
-  { value: 'zh', label: '中文' },
   { value: 'zh-tw', label: '繁體中文' },
-  { value: 'it', label: 'Italiano' },
-  { value: 'ar', label: 'العربية' },
 ] as const
 
-const translations: Record<string, TranslationStrings> = { de, en, es, fr, hu, it, ru, zh, 'zh-tw': zhTW, nl, ar, br, cs, pl }
-const LOCALES: Record<string, string> = { de: 'de-DE', en: 'en-US', es: 'es-ES', fr: 'fr-FR', hu: 'hu-HU', it: 'it-IT', ru: 'ru-RU', zh: 'zh-CN', 'zh-tw': 'zh-tw', nl: 'nl-NL', ar: 'ar-SA', br: 'pt-BR', cs: 'cs-CZ', pl: 'pl-PL' }
-const RTL_LANGUAGES = new Set(['ar'])
+const translations: Record<string, TranslationStrings> = { en, 'zh-tw': zhTW }
+const LOCALES: Record<string, string> = { en: 'en-US', 'zh-tw': 'zh-TW' }
+const RTL_LANGUAGES = new Set<string>([])
 
 export function getLocaleForLanguage(language: string): string {
   return LOCALES[language] || LOCALES.en
 }
 
 export function getIntlLanguage(language: string): string {
-  if (language === 'br') return 'pt-BR'
-  if (language === 'zh-tw') return 'zh-tw'
-  return ['de', 'es', 'fr', 'hu', 'it', 'ru', 'zh', 'nl', 'ar', 'cs', 'pl'].includes(language) ? language : 'en'
+  if (language === 'zh-tw') return 'zh-TW'
+  return 'en'
 }
 
 export function isRtlLanguage(language: string): boolean {

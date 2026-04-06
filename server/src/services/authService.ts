@@ -17,7 +17,7 @@ export const ADMIN_SETTINGS_KEYS = [
   'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from', 'smtp_skip_tls_verify',
   'notification_webhook_url', 'notification_channel',
   'notify_trip_invite', 'notify_booking_change', 'notify_trip_reminder',
-  'notify_vacay_invite', 'notify_photos_shared', 'notify_collab_message', 'notify_packing_tagged',
+  'notify_photos_shared', 'notify_collab_message', 'notify_packing_tagged',
 ];
 
 // ---------------------------------------------------------------------------
@@ -124,8 +124,8 @@ export function getAppConfig(authenticatedUser: { id: number } | null) {
     setup_complete: setupComplete,
     version,
     has_maps_key: hasGoogleKey,
-    maps_provider: adminMapsRow?.maps_provider ?? 'openstreetmap',
-    maps_api_key: hasGoogleKey ? adminMapsRow!.maps_api_key : undefined,
+    maps_provider: 'google',
+    maps_api_key: hasGoogleKey ? decrypt_api_key(adminMapsRow!.maps_api_key) : undefined,
     oidc_configured: oidcConfigured,
     oidc_display_name: oidcConfigured ? (oidcDisplayName || 'SSO') : undefined,
     oidc_only_mode: oidcOnlyMode,

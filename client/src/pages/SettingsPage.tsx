@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { useSettingsStore } from '../store/settingsStore'
@@ -6,15 +6,13 @@ import { SUPPORTED_LANGUAGES, useTranslation } from '../i18n'
 import Navbar from '../components/Layout/Navbar'
 
 import { useToast } from '../components/shared/Toast'
-import { Save, Map, Palette, User, Moon, Sun, Monitor, Shield, Camera, Trash2, Lock, KeyRound, AlertTriangle, Copy, Download, Printer, Terminal, Plus, Check, Info } from 'lucide-react'
+import { Save, Palette, User, Moon, Sun, Monitor, Shield, Camera, Trash2, Lock, KeyRound, AlertTriangle, Copy, Download, Printer, Terminal, Plus, Check, Info } from 'lucide-react'
 import { authApi, adminApi } from '../api/client'
 import apiClient from '../api/client'
 import { useAddonStore } from '../store/addonStore'
 import type { LucideIcon } from 'lucide-react'
 import type { UserWithOidc } from '../types'
 import { getApiErrorMessage } from '../types'
-import { MapWrapper } from '../components/Map/MapWrapper'
-import type { Place } from '../types'
 
 const MFA_BACKUP_SESSION_KEY = 'trek_mfa_backup_codes_pending'
 interface McpToken {
@@ -121,11 +119,6 @@ export default function SettingsPage(): React.ReactElement {
   const [immichApiKey, setImmichApiKey] = useState('')
   const [immichConnected, setImmichConnected] = useState(false)
   const [immichTesting, setImmichTesting] = useState(false)
-
-  const handleMapClick = useCallback((mapInfo) => {
-    setDefaultLat(mapInfo.latlng.lat)
-    setDefaultLng(mapInfo.latlng.lng)
-  }, [])
 
   useEffect(() => {
     loadAddons()
@@ -242,36 +235,6 @@ export default function SettingsPage(): React.ReactElement {
   }
 }`
 
-  // Map settings
-  const [defaultLat, setDefaultLat] = useState<number | string>(settings.default_lat || 48.8566)
-  const [defaultLng, setDefaultLng] = useState<number | string>(settings.default_lng || 2.3522)
-  const [defaultZoom, setDefaultZoom] = useState<number | string>(settings.default_zoom || 10)
-
-  const mapPlaces = useMemo(() => {
-      // Add center location to map places
-      let places: Place[] = []
-      places.push({
-        id: 1,
-        trip_id: 1,
-        name: "Default map center",
-        description: "",
-        lat: defaultLat as number,
-        lng: defaultLng as number,
-        address: "",
-        category_id: 0,
-        icon: null,
-        price: null,
-        image_url: null,
-        google_place_id: null,
-        osm_id: null,
-        route_geometry: null,
-        place_time: null,
-        end_time: null,
-        created_at: Date()
-      });
-      return places
-    }, [defaultLat, defaultLng])
-    
   // Display
   const [tempUnit, setTempUnit] = useState<string>(settings.temperature_unit || 'celsius')
 
@@ -373,22 +336,6 @@ export default function SettingsPage(): React.ReactElement {
     setEmail(user?.email || '')
   }, [user])
 
-  const saveMapSettings = async (): Promise<void> => {
-    setSaving(s => ({ ...s, map: true }))
-    try {
-      await updateSettings({
-        default_lat: parseFloat(String(defaultLat)),
-        default_lng: parseFloat(String(defaultLng)),
-        default_zoom: parseInt(String(defaultZoom)),
-      })
-      toast.success(t('settings.toast.mapSaved'))
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Error')
-    } finally {
-      setSaving(s => ({ ...s, map: false }))
-    }
-  }
-
   const saveDisplay = async (): Promise<void> => {
     setSaving(s => ({ ...s, display: true }))
     try {
@@ -447,63 +394,6 @@ export default function SettingsPage(): React.ReactElement {
           </div>
 
           <div className="settings-columns" style={{ columnCount: 2, columnGap: 24 }}>
-
-          {/* Map settings */}
-          <Section title={t('settings.map')} icon={Map}>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('settings.latitude')}</label>
-                <input
-                  type="number"
-                  step="any"
-                  value={defaultLat}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDefaultLat(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('settings.longitude')}</label>
-                <input
-                  type="number"
-                  step="any"
-                  value={defaultLng}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDefaultLng(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent"
-                />
-              </div>
-            </div>
-
-            <div>
-              <div style={{ position: 'relative', inset: 0, height:"200px", width: "100%" }}>
-                          <MapWrapper
-                            places={mapPlaces}
-                            dayPlaces={[]}
-                            route={null}
-                            routeSegments={null}
-                            selectedPlaceId={null}
-                            onMarkerClick={null}
-                            onMapClick={handleMapClick}
-                            onMapContextMenu={null}
-                            center = {[settings.default_lat, settings.default_lng]}
-                            zoom={defaultZoom}
-                            fitKey={null}
-                            dayOrderMap={[]}
-                            leftWidth={0}
-                            rightWidth={0}
-                            hasInspector={false}
-                          />
-              </div>
-            </div>
-                
-            <button
-              onClick={saveMapSettings}
-              disabled={saving.map}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-sm hover:bg-slate-700 disabled:bg-slate-400"
-            >
-              {saving.map ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
-              {t('settings.saveMap')}
-            </button>
-          </Section>
 
           {/* Display */}
           <Section title={t('settings.display')} icon={Palette}>

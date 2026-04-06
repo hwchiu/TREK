@@ -23,7 +23,6 @@ interface AuthState {
   demoMode: boolean
   devMode: boolean
   hasMapsKey: boolean
-  mapsProvider: 'openstreetmap' | 'google'
   mapsApiKey: string | null
   serverTimezone: string
   /** Server policy: all users must enable MFA */
@@ -44,7 +43,7 @@ interface AuthState {
   setDemoMode: (val: boolean) => void
   setDevMode: (val: boolean) => void
   setHasMapsKey: (val: boolean) => void
-  setMapsConfig: (provider: 'openstreetmap' | 'google', apiKey: string | null) => void
+  setMapsConfig: (apiKey: string | null) => void
   setServerTimezone: (tz: string) => void
   setAppRequireMfa: (val: boolean) => void
   setTripRemindersEnabled: (val: boolean) => void
@@ -62,7 +61,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   demoMode: localStorage.getItem('demo_mode') === 'true',
   devMode: false,
   hasMapsKey: false,
-  mapsProvider: 'openstreetmap',
   mapsApiKey: null,
   serverTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   appRequireMfa: false,
@@ -193,6 +191,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const data = await authApi.updateApiKeys(keys)
       set({ user: data.user })
+      const apiKey = data.user?.maps_api_key ?? null
+      set({ mapsApiKey: apiKey, hasMapsKey: !!apiKey })
     } catch (err: unknown) {
       throw new Error(getApiErrorMessage(err, 'Error saving API keys'))
     }
@@ -228,7 +228,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setDevMode: (val: boolean) => set({ devMode: val }),
   setHasMapsKey: (val: boolean) => set({ hasMapsKey: val }),
-  setMapsConfig: (provider, apiKey) => set({ mapsProvider: provider, mapsApiKey: apiKey, hasMapsKey: !!apiKey }),
+  setMapsConfig: (apiKey: string | null) => set({ mapsApiKey: apiKey, hasMapsKey: !!apiKey }),
   setServerTimezone: (tz: string) => set({ serverTimezone: tz }),
   setAppRequireMfa: (val: boolean) => set({ appRequireMfa: val }),
   setTripRemindersEnabled: (val: boolean) => set({ tripRemindersEnabled: val }),

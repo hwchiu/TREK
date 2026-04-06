@@ -252,30 +252,6 @@ export interface Photo {
   created_at: string
 }
 
-// Atlas place detail
-export interface AtlasPlace {
-  id: number
-  name: string
-  lat: number | null
-  lng: number | null
-}
-
-// GeoJSON types (simplified for atlas map)
-export interface GeoJsonFeature {
-  type: 'Feature'
-  properties: Record<string, string | number | null | undefined>
-  geometry: {
-    type: string
-    coordinates: unknown
-  }
-  id?: string
-}
-
-export interface GeoJsonFeatureCollection {
-  type: 'FeatureCollection'
-  features: GeoJsonFeature[]
-}
-
 // App config from /auth/app-config
 export interface AppConfig {
   has_users: boolean
@@ -284,7 +260,6 @@ export interface AppConfig {
   oidc_configured: boolean
   oidc_display_name?: string
   has_maps_key?: boolean
-  maps_provider?: 'openstreetmap' | 'google'
   maps_api_key?: string
   allowed_file_types?: string
   timezone?: string
@@ -299,51 +274,6 @@ export type TranslationFn = (key: string, params?: Record<string, string | numbe
 export interface WebSocketEvent {
   type: string
   [key: string]: unknown
-}
-
-// Vacay types
-export interface VacayHolidayCalendar {
-  id: number
-  plan_id: number
-  region: string
-  label: string | null
-  color: string
-  sort_order: number
-}
-
-export interface VacayPlan {
-  id: number
-  holidays_enabled: boolean
-  holidays_region: string | null
-  holiday_calendars: VacayHolidayCalendar[]
-  block_weekends: boolean
-  carry_over_enabled: boolean
-  company_holidays_enabled: boolean
-  name?: string
-  year?: number
-  owner_id?: number
-  created_at?: string
-  updated_at?: string
-}
-
-export interface VacayUser {
-  id: number
-  username: string
-  color: string | null
-}
-
-export interface VacayEntry {
-  date: string
-  user_id: number
-  plan_id?: number
-  person_color?: string
-  person_name?: string
-}
-
-export interface VacayStat {
-  user_id: number
-  vacation_days: number
-  used: number
 }
 
 export interface HolidayInfo {
