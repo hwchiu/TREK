@@ -284,7 +284,6 @@ export interface AppConfig {
   oidc_configured: boolean
   oidc_display_name?: string
   has_maps_key?: boolean
-  maps_provider?: 'openstreetmap' | 'google'
   maps_api_key?: string
   allowed_file_types?: string
   timezone?: string
