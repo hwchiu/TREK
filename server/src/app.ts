@@ -130,7 +130,9 @@ export function createApp(): express.Application {
         } else if (res.statusCode === 401 || res.statusCode === 403) {
           logDebug(`${req.method} ${req.path} ${res.statusCode} ${ms}ms ip=${req.ip}`);
         } else if (res.statusCode >= 400) {
-          logWarn(`${req.method} ${req.path} ${res.statusCode} ${ms}ms ip=${req.ip}`);
+          // place-photo 404 is expected (no photo found) — don't spam WARN logs
+          const isExpected404 = res.statusCode === 404 && req.path.startsWith('/place-photo/');
+          if (!isExpected404) logWarn(`${req.method} ${req.path} ${res.statusCode} ${ms}ms ip=${req.ip}`);
         }
         const q = Object.keys(req.query).length ? ` query=${JSON.stringify(redact(req.query))}` : '';
         const b = req.body && Object.keys(req.body).length ? ` body=${JSON.stringify(redact(req.body))}` : '';
