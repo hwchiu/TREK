@@ -1,5 +1,5 @@
-import { memo, useEffect, useRef, useCallback } from 'react'
-import { GoogleMap, useLoadScript, Marker, Polyline } from '@react-google-maps/api'
+import { memo, useEffect, useRef, useState } from 'react'
+import { Loader } from '@googlemaps/js-api-loader'
 import type { Place } from '../../types'
 
 interface GoogleMapViewProps {
@@ -13,7 +13,14 @@ interface GoogleMapViewProps {
   route?: Array<[number, number]> | null
 }
 
-const containerStyle = { width: '100%', height: '100%' }
+// Singleton loader — one Loader instance per API key to avoid duplicate script tags
+const loaderCache = new Map<string, Loader>()
+function getLoader(apiKey: string) {
+  if (!loaderCache.has(apiKey)) {
+    loaderCache.set(apiKey, new Loader({ apiKey, version: 'weekly', libraries: [] }))
+  }
+  return loaderCache.get(apiKey)!
+}
 
 export const GoogleMapView = memo(function GoogleMapView({
   apiKey,
@@ -25,29 +32,92 @@ export const GoogleMapView = memo(function GoogleMapView({
   zoom = 10,
   route = null,
 }: GoogleMapViewProps) {
-  const { isLoaded, loadError } = useLoadScript({ googleMapsApiKey: apiKey })
+  const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<google.maps.Map | null>(null)
+  const markersRef = useRef<google.maps.Marker[]>([])
+  const polylineRef = useRef<google.maps.Polyline | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [isLoaded, setIsLoaded] = useState(false)
 
-  const mapCenter = { lat: center[0], lng: center[1] }
-
-  // Fit bounds when places change
+  // Load the Maps JS API once
   useEffect(() => {
-    if (!mapRef.current || places.length === 0) return
-    const bounds = new google.maps.LatLngBounds()
-    places.forEach(p => { if (p.lat && p.lng) bounds.extend({ lat: p.lat, lng: p.lng }) })
-    if (!bounds.isEmpty()) mapRef.current.fitBounds(bounds)
-  }, [places])
+    let cancelled = false
+    getLoader(apiKey).load()
+      .then(() => { if (!cancelled) setIsLoaded(true) })
+      .catch((err: unknown) => {
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : String(err))
+      })
+    return () => { cancelled = true }
+  }, [apiKey])
 
-  const handleMapClick = useCallback((e: google.maps.MapMouseEvent) => {
-    if (onMapClick && e.latLng) onMapClick(e.latLng.lat(), e.latLng.lng())
-  }, [onMapClick])
+  // Create map once the API is ready and the container is mounted
+  useEffect(() => {
+    if (!isLoaded || !containerRef.current || mapRef.current) return
+    mapRef.current = new google.maps.Map(containerRef.current, {
+      center: { lat: center[0], lng: center[1] },
+      zoom,
+      streetViewControl: false,
+      mapTypeControl: false,
+      fullscreenControl: false,
+    })
+    if (onMapClick) {
+      mapRef.current.addListener('click', (e: google.maps.MapMouseEvent) => {
+        if (e.latLng) onMapClick(e.latLng.lat(), e.latLng.lng())
+      })
+    }
+  }, [isLoaded]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync markers whenever places or selectedPlaceId changes
+  useEffect(() => {
+    if (!isLoaded || !mapRef.current) return
+    markersRef.current.forEach(m => m.setMap(null))
+    markersRef.current = []
+
+    const bounds = new google.maps.LatLngBounds()
+    let hasCoords = false
+
+    places.forEach(place => {
+      if (!place.lat || !place.lng) return
+      hasCoords = true
+      bounds.extend({ lat: place.lat, lng: place.lng })
+      const isSelected = String(place.id) === String(selectedPlaceId)
+      const marker = new google.maps.Marker({
+        position: { lat: place.lat, lng: place.lng },
+        map: mapRef.current!,
+        title: place.name,
+        zIndex: isSelected ? 1000 : 1,
+        animation: isSelected ? google.maps.Animation.BOUNCE : undefined,
+      })
+      marker.addListener('click', () => onMarkerClick?.(place.id))
+      markersRef.current.push(marker)
+    })
+
+    if (hasCoords && places.length > 1) mapRef.current.fitBounds(bounds)
+    else if (hasCoords) mapRef.current.setCenter({ lat: places[0].lat!, lng: places[0].lng! })
+  }, [isLoaded, places, selectedPlaceId, onMarkerClick])
+
+  // Sync route polyline
+  useEffect(() => {
+    if (!isLoaded || !mapRef.current) return
+    polylineRef.current?.setMap(null)
+    polylineRef.current = null
+    if (route && route.length > 1) {
+      polylineRef.current = new google.maps.Polyline({
+        path: route.map(([lat, lng]) => ({ lat, lng })),
+        map: mapRef.current,
+        strokeColor: '#3b82f6',
+        strokeWeight: 3,
+        strokeOpacity: 0.8,
+      })
+    }
+  }, [isLoaded, route])
 
   if (loadError) return (
     <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-500 text-sm p-4 text-center">
       <div>
         <div className="font-medium mb-1">Failed to load Google Maps</div>
-        <div className="text-xs text-slate-400">{loadError.message}</div>
-        <div className="text-xs text-slate-400 mt-1">Check that Maps JavaScript API is enabled in Google Cloud Console</div>
+        <div className="text-xs text-slate-400 mb-1">{loadError}</div>
+        <div className="text-xs text-slate-400">Ensure Maps JavaScript API is enabled at console.cloud.google.com</div>
       </div>
     </div>
   )
@@ -58,42 +128,5 @@ export const GoogleMapView = memo(function GoogleMapView({
     </div>
   )
 
-  return (
-    <GoogleMap
-      mapContainerStyle={containerStyle}
-      center={mapCenter}
-      zoom={zoom}
-      onLoad={map => { mapRef.current = map }}
-      onClick={handleMapClick}
-      options={{
-        streetViewControl: false,
-        mapTypeControl: false,
-        fullscreenControl: false,
-      }}
-    >
-      {places.map(place => {
-        if (!place.lat || !place.lng) return null
-        const isSelected = String(place.id) === String(selectedPlaceId)
-        return (
-          <Marker
-            key={place.id}
-            position={{ lat: place.lat, lng: place.lng }}
-            title={place.name}
-            onClick={() => onMarkerClick?.(place.id)}
-            options={{
-              zIndex: isSelected ? 1000 : 1,
-              animation: isSelected ? google.maps.Animation.BOUNCE : undefined,
-            }}
-          />
-        )
-      })}
-
-      {route && route.length > 1 && (
-        <Polyline
-          path={route.map(([lat, lng]) => ({ lat, lng }))}
-          options={{ strokeColor: '#3b82f6', strokeWeight: 3, strokeOpacity: 0.8 }}
-        />
-      )}
-    </GoogleMap>
-  )
+  return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
 })
