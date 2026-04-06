@@ -98,7 +98,8 @@ export function getAppConfig(authenticatedUser: { id: number } | null) {
   const allowRegistration = userCount === 0 || (setting?.value ?? 'true') === 'true';
   const isDemo = process.env.DEMO_MODE === 'true';
   const { version } = require('../../package.json');
-  const hasGoogleKey = !!db.prepare("SELECT maps_api_key FROM users WHERE role = 'admin' AND maps_api_key IS NOT NULL AND maps_api_key != '' LIMIT 1").get();
+  const adminMapsRow = db.prepare("SELECT maps_api_key, maps_provider FROM users WHERE role = 'admin' LIMIT 1").get() as { maps_api_key: string | null; maps_provider: string } | undefined;
+  const hasGoogleKey = !!(adminMapsRow?.maps_api_key);
   const oidcDisplayName = process.env.OIDC_DISPLAY_NAME ||
     (db.prepare("SELECT value FROM app_settings WHERE key = 'oidc_display_name'").get() as { value: string } | undefined)?.value || null;
   const oidcConfigured = !!(
@@ -123,6 +124,8 @@ export function getAppConfig(authenticatedUser: { id: number } | null) {
     setup_complete: setupComplete,
     version,
     has_maps_key: hasGoogleKey,
+    maps_provider: adminMapsRow?.maps_provider ?? 'openstreetmap',
+    maps_api_key: hasGoogleKey ? adminMapsRow!.maps_api_key : undefined,
     oidc_configured: oidcConfigured,
     oidc_display_name: oidcConfigured ? (oidcDisplayName || 'SSO') : undefined,
     oidc_only_mode: oidcOnlyMode,

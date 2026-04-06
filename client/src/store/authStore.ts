@@ -23,6 +23,8 @@ interface AuthState {
   demoMode: boolean
   devMode: boolean
   hasMapsKey: boolean
+  mapsProvider: 'openstreetmap' | 'google'
+  mapsApiKey: string | null
   serverTimezone: string
   /** Server policy: all users must enable MFA */
   appRequireMfa: boolean
@@ -42,6 +44,7 @@ interface AuthState {
   setDemoMode: (val: boolean) => void
   setDevMode: (val: boolean) => void
   setHasMapsKey: (val: boolean) => void
+  setMapsConfig: (provider: 'openstreetmap' | 'google', apiKey: string | null) => void
   setServerTimezone: (tz: string) => void
   setAppRequireMfa: (val: boolean) => void
   setTripRemindersEnabled: (val: boolean) => void
@@ -59,6 +62,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   demoMode: localStorage.getItem('demo_mode') === 'true',
   devMode: false,
   hasMapsKey: false,
+  mapsProvider: 'openstreetmap',
+  mapsApiKey: null,
   serverTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   appRequireMfa: false,
   tripRemindersEnabled: false,
@@ -223,6 +228,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setDevMode: (val: boolean) => set({ devMode: val }),
   setHasMapsKey: (val: boolean) => set({ hasMapsKey: val }),
+  setMapsConfig: (provider, apiKey) => set({ mapsProvider: provider, mapsApiKey: apiKey, hasMapsKey: !!apiKey }),
   setServerTimezone: (tz: string) => set({ serverTimezone: tz }),
   setAppRequireMfa: (val: boolean) => set({ appRequireMfa: val }),
   setTripRemindersEnabled: (val: boolean) => set({ tripRemindersEnabled: val }),
