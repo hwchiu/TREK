@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/authStore'
 import { useSettingsStore } from '../store/settingsStore'
 import { SUPPORTED_LANGUAGES, useTranslation } from '../i18n'
 import Navbar from '../components/Layout/Navbar'
-import CustomSelect from '../components/shared/CustomSelect'
+
 import { useToast } from '../components/shared/Toast'
 import { Save, Map, Palette, User, Moon, Sun, Monitor, Shield, Camera, Trash2, Lock, KeyRound, AlertTriangle, Copy, Download, Printer, Terminal, Plus, Check, Info } from 'lucide-react'
 import { authApi, adminApi } from '../api/client'
@@ -13,13 +13,8 @@ import { useAddonStore } from '../store/addonStore'
 import type { LucideIcon } from 'lucide-react'
 import type { UserWithOidc } from '../types'
 import { getApiErrorMessage } from '../types'
-import { MapView } from '../components/Map/MapView'
+import { MapWrapper } from '../components/Map/MapWrapper'
 import type { Place } from '../types'
-
-interface MapPreset {
-  name: string
-  url: string
-}
 
 const MFA_BACKUP_SESSION_KEY = 'trek_mfa_backup_codes_pending'
 interface McpToken {
@@ -29,14 +24,6 @@ interface McpToken {
   created_at: string
   last_used_at: string | null
 }
-
-const MAP_PRESETS: MapPreset[] = [
-  { name: 'OpenStreetMap', url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png' },
-  { name: 'OpenStreetMap DE', url: 'https://tile.openstreetmap.de/{z}/{x}/{y}.png' },
-  { name: 'CartoDB Light', url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png' },
-  { name: 'CartoDB Dark', url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' },
-  { name: 'Stadia Smooth', url: 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png' },
-]
 
 interface SectionProps {
   title: string
@@ -256,7 +243,6 @@ export default function SettingsPage(): React.ReactElement {
 }`
 
   // Map settings
-  const [mapTileUrl, setMapTileUrl] = useState<string>(settings.map_tile_url || '')
   const [defaultLat, setDefaultLat] = useState<number | string>(settings.default_lat || 48.8566)
   const [defaultLng, setDefaultLng] = useState<number | string>(settings.default_lng || 2.3522)
   const [defaultZoom, setDefaultZoom] = useState<number | string>(settings.default_zoom || 10)
@@ -376,7 +362,6 @@ export default function SettingsPage(): React.ReactElement {
   }
 
   useEffect(() => {
-    setMapTileUrl(settings.map_tile_url || '')
     setDefaultLat(settings.default_lat || 48.8566)
     setDefaultLng(settings.default_lng || 2.3522)
     setDefaultZoom(settings.default_zoom || 10)
@@ -392,7 +377,6 @@ export default function SettingsPage(): React.ReactElement {
     setSaving(s => ({ ...s, map: true }))
     try {
       await updateSettings({
-        map_tile_url: mapTileUrl,
         default_lat: parseFloat(String(defaultLat)),
         default_lng: parseFloat(String(defaultLng)),
         default_zoom: parseInt(String(defaultZoom)),
@@ -466,29 +450,6 @@ export default function SettingsPage(): React.ReactElement {
 
           {/* Map settings */}
           <Section title={t('settings.map')} icon={Map}>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('settings.mapTemplate')}</label>
-              <CustomSelect
-                value={mapTileUrl}
-                onChange={(value: string) => { if (value) setMapTileUrl(value) }}
-                placeholder={t('settings.mapTemplatePlaceholder.select')}
-                options={MAP_PRESETS.map(p => ({
-                  value: p.url,
-                  label: p.name,
-                }))}
-                size="sm"
-                style={{ marginBottom: 8 }}
-              />
-              <input
-                type="text"
-                value={mapTileUrl}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMapTileUrl(e.target.value)}
-                placeholder="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent"
-              />
-              <p className="text-xs text-slate-400 mt-1">{t('settings.mapDefaultHint')}</p>
-            </div>
-
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('settings.latitude')}</label>
@@ -514,7 +475,7 @@ export default function SettingsPage(): React.ReactElement {
 
             <div>
               <div style={{ position: 'relative', inset: 0, height:"200px", width: "100%" }}>
-                          <MapView
+                          <MapWrapper
                             places={mapPlaces}
                             dayPlaces={[]}
                             route={null}
@@ -525,7 +486,6 @@ export default function SettingsPage(): React.ReactElement {
                             onMapContextMenu={null}
                             center = {[settings.default_lat, settings.default_lng]}
                             zoom={defaultZoom}
-                            tileUrl={mapTileUrl}
                             fitKey={null}
                             dayOrderMap={[]}
                             leftWidth={0}

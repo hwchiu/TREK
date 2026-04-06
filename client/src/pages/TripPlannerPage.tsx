@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useTripStore } from '../store/tripStore'
 import { useCanDo } from '../store/permissionsStore'
 import { useSettingsStore } from '../store/settingsStore'
-import { MapView } from '../components/Map/MapView'
+import { MapWrapper } from '../components/Map/MapWrapper'
 import { getCached, fetchPhoto } from '../services/photoService'
 import DayPlanSidebar from '../components/Planner/DayPlanSidebar'
 import PlacesSidebar from '../components/Planner/PlacesSidebar'
@@ -439,7 +439,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
     return da.map(a => a.place).filter(p => p?.lat && p?.lng)
   }, [selectedDayId, assignments])
 
-  const mapTileUrl = settings.map_tile_url || 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+  
   const defaultCenter = [settings.default_lat || 48.8566, settings.default_lng || 2.3522]
   const defaultZoom = settings.default_zoom || 10
 
@@ -546,7 +546,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
 
         {activeTab === 'plan' && (
           <div style={{ position: 'absolute', inset: 0 }}>
-            <MapView
+            <MapWrapper
               places={mapPlaces}
               dayPlaces={dayPlaces}
               route={route}
@@ -557,7 +557,6 @@ export default function TripPlannerPage(): React.ReactElement | null {
               onMapContextMenu={handleMapContextMenu}
               center={defaultCenter}
               zoom={defaultZoom}
-              tileUrl={mapTileUrl}
               fitKey={fitKey}
               dayOrderMap={dayOrderMap}
               leftWidth={leftCollapsed ? 0 : leftWidth}
