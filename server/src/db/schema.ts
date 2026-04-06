@@ -9,6 +9,7 @@ function createTables(db: Database.Database): void {
       password_hash TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'user',
       maps_api_key TEXT,
+      maps_provider TEXT NOT NULL DEFAULT 'openstreetmap',
       unsplash_api_key TEXT,
       openweather_api_key TEXT,
       flight_api_key TEXT,

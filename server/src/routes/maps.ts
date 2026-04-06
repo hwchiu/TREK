@@ -69,7 +69,7 @@ router.get('/reverse', authenticate, async (req: Request, res: Response) => {
   if (!lat || !lng) return res.status(400).json({ error: 'lat and lng required' });
 
   try {
-    const result = await reverseGeocode(lat, lng, lang);
+    const result = await reverseGeocode(lat, lng, lang, (req as AuthRequest).user?.id);
     res.json(result);
   } catch {
     res.json({ name: null, address: null });
@@ -82,7 +82,7 @@ router.post('/resolve-url', authenticate, async (req: Request, res: Response) =>
   if (!url || typeof url !== 'string') return res.status(400).json({ error: 'URL is required' });
 
   try {
-    const result = await resolveGoogleMapsUrl(url);
+    const result = await resolveGoogleMapsUrl(url, (req as AuthRequest).user?.id);
     res.json(result);
   } catch (err: unknown) {
     const status = (err as { status?: number }).status || 400;

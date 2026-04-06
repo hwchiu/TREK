@@ -117,6 +117,7 @@ export default function AdminPage(): React.ReactElement {
 
   // API Keys
   const [mapsKey, setMapsKey] = useState<string>('')
+  const [mapsProvider, setMapsProvider] = useState<'openstreetmap' | 'google'>('openstreetmap')
   const [weatherKey, setWeatherKey] = useState<string>('')
   const [flightKey, setFlightKey] = useState<string>('')
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({})
@@ -178,6 +179,7 @@ export default function AdminPage(): React.ReactElement {
     try {
       const data = await authApi.getSettings()
       setMapsKey(data.settings?.maps_api_key || '')
+      setMapsProvider((data.settings?.maps_provider as 'openstreetmap' | 'google') || 'openstreetmap')
       setWeatherKey(data.settings?.openweather_api_key || '')
       setFlightKey(data.settings?.flight_api_key || '')
     } catch (err: unknown) {
@@ -212,10 +214,15 @@ export default function AdminPage(): React.ReactElement {
   }
 
   const handleSaveApiKeys = async () => {
+    if (mapsProvider === 'google' && !mapsKey.trim()) {
+      toast.error('Google Maps requires an API key. Please enter your key or switch to OpenStreetMap.')
+      return
+    }
     setSavingKeys(true)
     try {
       await updateApiKeys({
         maps_api_key: mapsKey,
+        maps_provider: mapsProvider,
         openweather_api_key: weatherKey,
         flight_api_key: flightKey,
       })
@@ -231,7 +238,7 @@ export default function AdminPage(): React.ReactElement {
     setValidating({ maps: true, weather: true })
     try {
       // Save first so validation uses the current values
-      await updateApiKeys({ maps_api_key: mapsKey, openweather_api_key: weatherKey, flight_api_key: flightKey })
+      await updateApiKeys({ maps_api_key: mapsKey, maps_provider: mapsProvider, openweather_api_key: weatherKey, flight_api_key: flightKey })
       const result = await authApi.validateKeys()
       setValidation(result)
     } catch (err: unknown) {
@@ -245,7 +252,7 @@ export default function AdminPage(): React.ReactElement {
     setValidating(prev => ({ ...prev, [keyType]: true }))
     try {
       // Save first so validation uses the current values
-      await updateApiKeys({ maps_api_key: mapsKey, openweather_api_key: weatherKey, flight_api_key: flightKey })
+      await updateApiKeys({ maps_api_key: mapsKey, maps_provider: mapsProvider, openweather_api_key: weatherKey, flight_api_key: flightKey })
       const result = await authApi.validateKeys()
       setValidation(prev => ({ ...prev, [keyType]: result[keyType] }))
     } catch (err: unknown) {
@@ -779,11 +786,43 @@ export default function AdminPage(): React.ReactElement {
                   <p className="text-xs text-slate-400 mt-1">{t('admin.apiKeysHint')}</p>
                 </div>
                 <div className="p-6 space-y-4">
+                  {/* Map Provider Toggle */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                      🗺️ Map Provider
+                    </label>
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setMapsProvider('openstreetmap')}
+                        className={`flex-1 flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium transition-all ${mapsProvider === 'openstreetmap' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'}`}
+                      >
+                        <span>🌍</span>
+                        <div className="text-left">
+                          <div>OpenStreetMap</div>
+                          <div className="text-[11px] font-normal opacity-70">Free · No key needed</div>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMapsProvider('google')}
+                        className={`flex-1 flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium transition-all ${mapsProvider === 'google' ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'}`}
+                      >
+                        <span>🔵</span>
+                        <div className="text-left">
+                          <div>Google Maps</div>
+                          <div className="text-[11px] font-normal opacity-70">Better data · API key required</div>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Google Maps Key */}
                   <div>
                     <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1.5">
                       {t('admin.mapsKey')}
-                      <span className="text-[9px] font-medium px-1.5 py-px rounded-full bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200">{t('admin.recommended')}</span>
+                      {mapsProvider === 'google' && <span className="text-[9px] font-medium px-1.5 py-px rounded-full bg-red-100 text-red-700">Required</span>}
+                      {mapsProvider === 'openstreetmap' && <span className="text-[9px] font-medium px-1.5 py-px rounded-full bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200">{t('admin.recommended')}</span>}
                     </label>
                     <div className="flex gap-2">
                       <div className="relative flex-1">
@@ -791,8 +830,8 @@ export default function AdminPage(): React.ReactElement {
                           type={showKeys.maps ? 'text' : 'password'}
                           value={mapsKey}
                           onChange={e => setMapsKey(e.target.value)}
-                          placeholder={t('settings.keyPlaceholder')}
-                          className="w-full pr-10 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+                          placeholder={mapsProvider === 'google' ? 'Required for Google Maps' : t('settings.keyPlaceholder')}
+                          className={`w-full pr-10 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${mapsProvider === 'google' && !mapsKey ? 'border-red-400 focus:ring-red-400' : 'border-slate-300 focus:ring-slate-400'}`}
                         />
                         <button
                           type="button"
@@ -893,7 +932,7 @@ export default function AdminPage(): React.ReactElement {
 
                   <button
                     onClick={handleSaveApiKeys}
-                    disabled={savingKeys}
+                  disabled={savingKeys || (mapsProvider === 'google' && !mapsKey.trim())}
                     className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-sm hover:bg-slate-700 disabled:bg-slate-400"
                   >
                     {savingKeys ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
