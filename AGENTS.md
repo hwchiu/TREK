@@ -30,20 +30,38 @@ cd client && npm test
 ## Branch Workflow
 
 ```bash
+# ── Start new work ────────────────────────────────────────────────────────────
 git checkout main && git pull
 git checkout -b feat/<feature-name>   # or fix/<bug-name>
 
 # ... implement, commit incrementally ...
 
-# Before pushing — run BOTH test suites (see Iron Rules above)
-cd server && npm test && cd ../client && npm test
+# ── Before pushing ────────────────────────────────────────────────────────────
+# 1. Rebase onto latest main to avoid conflicts
+git fetch origin
+git rebase origin/main
 
+# 2. Run BOTH test suites (see Iron Rules above)
+cd server && npm test
+cd ../client && npm test -- --run
+
+# ── Open PR ───────────────────────────────────────────────────────────────────
 git push origin <branch>
 gh pr create --base main --head <branch> --title "..." --body "..."
-gh pr checks --watch          # wait for CI
-gh pr merge --squash --delete-branch
+gh pr checks --watch          # wait for CI — never merge with red CI
+
+# ── After PR merges ───────────────────────────────────────────────────────────
 git checkout main && git pull
+# ⚠️  DELETE the old branch locally; start ALL new work from fresh main
+git branch -d <branch>
 ```
+
+### ⚠️ Branch Rules (non-negotiable)
+
+- **Never continue committing to a branch after its PR is merged.** Create a new branch from updated main instead.
+- **Always rebase onto `origin/main` before opening a PR.** Conflicts are unacceptable when there is only one developer.
+- **One feature / fix per branch.** Do not mix unrelated changes.
+- **Never open a PR whose branch contains commits already merged to main.** Cherry-pick only the new commits onto a fresh branch if needed.
 
 All commits must include the Co-authored-by trailer:
 ```
